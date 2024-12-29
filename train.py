@@ -1,10 +1,13 @@
 import os
 import numpy as np
+from sklearn.metrics import accuracy_score
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard
+
+
 
 # Veri yolu ve sınıf adları
 actions = np.array(os.listdir("keypoints"))  # "keypoints" alt klasörlerinden sınıf adlarını al
@@ -54,8 +57,16 @@ log_dir = os.path.join('Logs')
 tb_callback = TensorBoard(log_dir=log_dir)
 
 model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
-model.fit(X_train, y_train, epochs=100, callbacks=[tb_callback])
+model.fit(X_train, y_train, epochs=500, callbacks=[tb_callback])
 
 # Model özeti
 #model.summary()
 model.save('actions.keras') #.keras uzantısını kendisi önerdi neden bilmiyorum
+
+
+yhat = model.predict(X_test)
+
+ytrue = np.argmax(y_test, axis=1).tolist()
+yhat = np.argmax(yhat, axis=1).tolist()
+print("aaaaaaaaaaa")
+print(accuracy_score(ytrue, yhat))

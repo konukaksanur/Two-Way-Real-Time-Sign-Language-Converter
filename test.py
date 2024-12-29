@@ -12,7 +12,7 @@ actions = np.array(os.listdir("keypoints"))
 model = load_model('actions.keras')
 cap = cv2.VideoCapture(0)
 
-colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245)]
+colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245),(16, 245, 245)]
 def prob_viz(res, actions, input_frame, colors):
     output_frame = input_frame.copy()
     for num, prob in enumerate(res):
@@ -41,9 +41,9 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         #         sequence.insert(0,keypoints)
         #         sequence = sequence[:30]
         sequence.append(keypoints)
-        sequence = sequence[-30:]
+        sequence = sequence[-60:]
 
-        if len(sequence) == 30:
+        if len(sequence) == 60:
             res = model.predict(np.expand_dims(sequence, axis=0))[0]
             print(actions[np.argmax(res)])
 
