@@ -1,5 +1,5 @@
-import os
 import numpy as np
+import os
 from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
