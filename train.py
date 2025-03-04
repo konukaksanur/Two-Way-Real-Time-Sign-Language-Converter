@@ -1,72 +1,85 @@
 import os
 import numpy as np
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.layers import LSTM, Dense, Dropout
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.optimizers import Adam
 
-
-
-# Veri yolu ve sınıf adları
-actions = np.array(os.listdir("keypoints"))  # "keypoints" alt klasörlerinden sınıf adlarını al
+# Define data path and load actions
+DATA_PATH = "keypoints"
+actions = np.array(os.listdir(DATA_PATH))  # Get class names from subdirectories
 label_map = {label: num for num, label in enumerate(actions)}
 
-# Veri işleme
-DATA_PATH = "keypoints"
+# Data processing
 sequences, labels = [], []
-
-for action in actions:  # Her bir sınıf için
+for action in actions:  # Iterate over each class
     action_path = os.path.join(DATA_PATH, action)
-    for video_folder in os.listdir(action_path):  # Her bir video için
+    for video_folder in os.listdir(action_path):  # Each video
         video_path = os.path.join(action_path, video_folder)
         if not os.path.isdir(video_path):
             continue
 
         window = []
-        frame_files = sorted([f for f in os.listdir(video_path) if f.startswith("frame_") and f.endswith(".npy")], key=lambda x: int(x.split('_')[1].split('.')[0]))
+        frame_files = sorted(
+            [f for f in os.listdir(video_path) if f.startswith("frame_") and f.endswith(".npy")],
+            key=lambda x: int(x.split('_')[1].split('.')[0])
+        )
         for frame_file in frame_files:
             frame_path = os.path.join(video_path, frame_file)
             res = np.load(frame_path)
             window.append(res)
 
-        if len(window) > 0:  # En az bir frame varsa sekansı ekle
+        if len(window) > 0:  # Add sequence if it has frames
             sequences.append(window)
             labels.append(label_map[action])
 
-# Numpy dizilerine dönüştürme ve padding
+# Convert to NumPy arrays and normalize input data
 max_sequence_length = max(len(seq) for seq in sequences)
 X = np.array([np.pad(seq, ((0, max_sequence_length - len(seq)), (0, 0)), mode='constant') for seq in sequences])
+X = (X - X.min()) / (X.max() - X.min())  # Normalize data
 y = to_categorical(labels).astype(int)
 
-# Eğitim ve test veri setlerinin ayrılması
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05)
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
 
-# Model oluşturma
+# Define the model
 model = Sequential()
-model.add(LSTM(64, return_sequences=True, activation='relu', input_shape=(max_sequence_length, X.shape[2])))
-model.add(LSTM(128, return_sequences=True, activation='relu'))
-model.add(LSTM(64, return_sequences=False, activation='relu'))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(32, activation='relu'))
+model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(max_sequence_length, X.shape[2])))
+model.add(Dropout(0.3))
+model.add(LSTM(256, return_sequences=True, activation='tanh'))
+model.add(Dropout(0.3))
+model.add(LSTM(128, return_sequences=False, activation='tanh'))
+model.add(Dropout(0.3))
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.3))
 model.add(Dense(actions.shape[0], activation='softmax'))
 
-# Modeli derleme ve eğitme
+# Compile the model
+optimizer = Adam(learning_rate=0.0001)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['categorical_accuracy'])
+
+# TensorBoard callback
 log_dir = os.path.join('Logs')
 tb_callback = TensorBoard(log_dir=log_dir)
 
-model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
-model.fit(X_train, y_train, epochs=500, callbacks=[tb_callback])
+# Train the model
+model.fit(X_train, y_train, epochs=148, batch_size=32, callbacks=[tb_callback], validation_split=0.1)
 
-# Model özeti
-#model.summary()
-model.save('actions.keras') #.keras uzantısını kendisi önerdi neden bilmiyorum
+# Save the model
+model.save('actions.h5')
 
-
+# Evaluate the model
 yhat = model.predict(X_test)
-
 ytrue = np.argmax(y_test, axis=1).tolist()
 yhat = np.argmax(yhat, axis=1).tolist()
-print("aaaaaaaaaaa")
-print(accuracy_score(ytrue, yhat))
+
+# Print accuracy and confusion matrix
+accuracy = accuracy_score(ytrue, yhat)
+print(f"Model Accuracy: {accuracy * 100:.2f}%")
+
+conf_matrix = confusion_matrix(ytrue, yhat)
+print("Confusion Matrix:")
+print(conf_matrix)
