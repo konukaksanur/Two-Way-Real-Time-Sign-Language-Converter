@@ -1,60 +1,90 @@
-import numpy as np
 import cv2
+import numpy as np
+import mediapipe as mp
 from tensorflow.keras.models import load_model
 import os
 
-# Define data path and load actions
-DATA_PATH = "keypoints"
-actions = np.array(os.listdir(DATA_PATH))  # Get class names from subdirectories
-label_map = {label: num for num, label in enumerate(actions)}
+# Mediapipe models
+mp_holistic = mp.solutions.holistic
+mp_drawing = mp.solutions.drawing_utils
 
-# Load the trained model
-model = load_model('actions.h5')
+# Model ve etiketleri yükle
+MODEL_PATH = "actions.h5"
+DATA_PATH = "keypoints"  # Eğitimde kullanılan veri yolu
+actions = np.array(os.listdir(DATA_PATH))  # Sınıf isimlerini al
+model = load_model(MODEL_PATH)
 
+# **Tahmin için eşik değeri**
+THRESHOLD = 0.8
 
-# Function to load and process the video
-def process_video(video_path, max_sequence_length):
-    # Initialize video capture
+def mediapipe_detection(image, model):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image.flags.writeable = False
+    results = model.process(image)
+    image.flags.writeable = True
+    return cv2.cvtColor(image, cv2.COLOR_RGB2BGR), results
+
+def extract_keypoints(results):
+    lh = np.array([[res.x, res.y, res.z] for res in
+                   results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21 * 3)
+    rh = np.array([[res.x, res.y, res.z] for res in
+                   results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21 * 3)
+    return np.concatenate([lh, rh])
+
+def classify_video(video_path):
     cap = cv2.VideoCapture(video_path)
-    frames = []
+    if not cap.isOpened():
+        print("Video açılamadı.")
+        return
 
-    # Read video frames
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break  # Stop if no more frames
+    sequence = []  # Model için giriş dizisi
 
-        # Here you would extract keypoints from the frame
-        # For example, use Mediapipe or other methods to extract the keypoints (landmarks) of the hand
-        # For simplicity, let's assume we have extracted keypoints as a numpy array (this part is pseudocode)
-        # frame_keypoints = extract_keypoints_from_frame(frame)
+    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-        # You need to replace `frame_keypoints` with the actual keypoints array from Mediapipe
-        frame_keypoints = np.random.rand(21, 3)  # Random values as a placeholder for the keypoints
+            image, results = mediapipe_detection(frame, holistic)
+            mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
 
-        frames.append(frame_keypoints)
+            # Landmarkları çıkar
+            keypoints = extract_keypoints(results)
+            sequence.append(keypoints)
 
-    cap.release()  # Close the video capture
+            # Modelin kabul ettiği uzunluktan fazla olursa, eski frame'leri sil
+            if len(sequence) > 60:
+                sequence.pop(0)
 
-    if len(frames) > 0:
-        # Pad the sequence to match max sequence length
-        frames = np.pad(frames, ((0, max_sequence_length - len(frames)), (0, 0)), mode='constant')
-        frames = (frames - frames.min()) / (frames.max() - frames.min())  # Normalize data
-        return np.expand_dims(frames, axis=0)  # Add batch dimension for model input
-    return None
+            # En az 30 frame biriktiyse tahmin yap
+            if len(sequence) == 60:
+                input_data = np.expand_dims(sequence, axis=0)  # Model için boyutları ayarla
+                input_data = (input_data - input_data.min()) / (input_data.max() - input_data.min())  # Normalize et
+
+                prediction = model.predict(input_data)[0]  # Modelden tahmin al
+                max_prob = np.max(prediction)  # En yüksek olasılığı al
+                predicted_label = actions[np.argmax(prediction)]  # En yüksek olasılıklı sınıf
+
+                # **Threshold (Eşik) Kontrolü**
+                if max_prob > THRESHOLD:
+                    label = f"{predicted_label} ({max_prob*100:.2f}%)"
+                else:
+                    label = "Bilinmeyen Hareket"
+
+                # Tahmini ekrana yazdır
+                cv2.putText(image, f"Prediction: {label}", (10, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                print(label)
+
+            cv2.imshow('Video Classification', image)
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 
-# Example usage
-video_path = "User_2_002.mp4"  # Replace with the path to your video file
-max_sequence_length = 30  # Use the same max sequence length as in training
-
-# Process the video and make a prediction
-processed_video = process_video(video_path, max_sequence_length)
-if processed_video is not None:
-    # Predict the class for the video
-    prediction = model.predict(processed_video)
-    predicted_class = np.argmax(prediction, axis=1)
-    predicted_class_name = actions[predicted_class][0]  # Convert the class index to the class name
-    print(f"The predicted class for this video is: {predicted_class_name}")
-else:
-    print("No frames found or video is too short.")
+# Kullanım
+video_path = "User_7_005.mp4"  # Tahmin yapılacak video dosyası
+classify_video(video_path)
