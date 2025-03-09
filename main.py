@@ -62,15 +62,16 @@ def extract_keypoints(results):
                     results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21 * 3)
     rh = np.array([[res.x, res.y, res.z] for res in
                     results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21 * 3)
-    
     # return np.concatenate([pose,face,lh,rh])
     return np.concatenate([pose, lh,rh])
-    #return np.concatenate([lh,rh])
+
 
 
 def process_videos():
-    DATA_PATH = "keypoints"  # Keypoint'leri kaydetmek için klasör
+    DATA_PATH = "keypoints_with_pose_constant"  # Keypoint'leri kaydetmek için klasör
     VIDEO_PATH = "data"  # Videoların ana klasörü
+
+    SEQUENCE_LENGTH = 40
 
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         for folder_name in os.listdir(VIDEO_PATH):  # Ana klasördeki her alt klasörü kontrol et
@@ -88,38 +89,64 @@ def process_videos():
                     print(f"Could not open video: {video_path}")
                     continue
 
-                frame_num = 0
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        print(f"Finished reading video: {video_name}")
-                        break
+#
+                video_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                skip_frames_window = max(int(video_frame_count / SEQUENCE_LENGTH), 1)
 
-                    # Frame işleme
-                    image, results = mediapipe_detection(frame, holistic)
+                if not video_frame_count < SEQUENCE_LENGTH: 
+                    for frame_counter in range(SEQUENCE_LENGTH):
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_counter * skip_frames_window)
 
-                    # Görselleştirme için landmark çizimi
-                    draw_styled_landmarks(image, results)
+                        success, frame = cap.read()
 
-                    # Keypoint çıkarma
-                    keypoints = extract_keypoints(results)
+                        if not success:
+                            break
+                        
+                        #normalized_frame = frame/255
 
-                    # Her bir frame'in keypoint'ini ayrı dosyaya kaydet
-                    save_folder = os.path.join(DATA_PATH, folder_name, video_name.split('.')[0])
-                    os.makedirs(save_folder, exist_ok=True)
-                    np.save(os.path.join(save_folder, f"frame_{frame_num}.npy"), keypoints)
+                        # Frame işleme
+                        image, results = mediapipe_detection(frame, holistic)
 
-                    # Video işleme durumunu göster
-                    cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_num}", (15, 30),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-                    cv2.imshow('Processing Video', image)
-                    if cv2.waitKey(10) & 0xFF == ord('q'):
-                        break
+                        # Görselleştirme için landmark çizimi
+                        draw_styled_landmarks(image, results)
 
-                    frame_num += 1
+                        # Keypoint çıkarma
+                        keypoints = extract_keypoints(results)
+
+                        # Her bir frame'in keypoint'ini ayrı dosyaya kaydet
+                        save_folder = os.path.join(DATA_PATH, folder_name, video_name.split('.')[0])
+                        os.makedirs(save_folder, exist_ok=True)
+                        np.save(os.path.join(save_folder, f"frame_{frame_counter}.npy"), keypoints)
+
+                        # Video işleme durumunu göster
+                        cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_counter}", (15, 30),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+                        cv2.imshow('Processing Video', image)
+
+                        if cv2.waitKey(10) & 0xFF == ord('q'):
+                            break
+                else:
+                    print('elendi ')
+
 
                 cap.release()
                 cv2.destroyAllWindows()
+                                    # resized_frame = cv2.resize(frame, (IMAGE_HEIGHT, IMAGE_WIDTH))
+                    # normalized_frame = resized_frame/255
+
+                # cap.release()
+                # return frame_list
+            
+
+            # if len(frames) == SEQUENCE_LENGTH:
+            #     features.append(frames)
+            #     labels.append(class_index)
+            #     video_files_paths.append(video_files_path)
+
+            # features = np.asarray(features)
+            # labels = np.array(labels)
+
+            # return features, labels, video_files_paths
 
 
 
