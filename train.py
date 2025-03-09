@@ -8,13 +8,39 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 
+from scipy.interpolate import CubicSpline
+
 # Define data path and load actions
 DATA_PATH = "keypoints"
 actions = np.array(os.listdir(DATA_PATH))  # Get class names from subdirectories
 label_map = {label: num for num, label in enumerate(actions)}
 
+
+def fill_missing_keypoints(sequence):
+
+    sequence = np.array(sequence)
+
+    for i in range(sequence.shape[1]):  # Iterate over each column (x, y, z)
+        column = sequence[:, i]
+        mask_column = column == 0  # Create a mask for missing values (zeros)
+
+        if np.any(~mask_column):  # Check if there is at least one known value
+            known_x = np.flatnonzero(~mask_column)  # Indices of known points
+            known_y = column[~mask_column]  # Values of known points
+
+            # Create cubic spline interpolation function using known points
+            cs = CubicSpline(known_x, known_y, bc_type='natural')
+
+            missing_x = np.flatnonzero(mask_column)  # Indices of missing points
+            column[mask_column] = cs(missing_x)  # Estimate and fill missing points
+
+        sequence[:, i] = column  # Save the updated column back to sequence
+
+    return sequence 
+
 # Data processing
 sequences, labels = [], []
+# before_fill_val = [] # just for check
 for action in actions:  # Iterate over each class
     action_path = os.path.join(DATA_PATH, action)
     for video_folder in os.listdir(action_path):  # Each video
@@ -32,8 +58,12 @@ for action in actions:  # Iterate over each class
             res = np.load(frame_path)
             window.append(res)
 
+        # window'a interpolation uygula
+        filled_miss_val_window = fill_missing_keypoints(window)
+
         if len(window) > 0:  # Add sequence if it has frames
-            sequences.append(window)
+            # before_fill_val.append(window) # !!just for check
+            sequences.append(filled_miss_val_window)
             labels.append(label_map[action])
 
 # Convert to NumPy arrays and normalize input data
