@@ -8,6 +8,8 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 
+from tensorflow.keras.regularizers import l2
+
 from scipy.interpolate import CubicSpline
 
 # Define data path and load actions
@@ -67,8 +69,7 @@ for action in actions:  # Iterate over each class
             labels.append(label_map[action])
 
 # Convert to NumPy arrays and normalize input data
-max_sequence_length = max(len(seq) for seq in sequences)
-X = np.array([np.pad(seq, ((0, max_sequence_length - len(seq)), (0, 0)), mode='constant') for seq in sequences])
+X = np.array(sequences)
 X = (X - X.min()) / (X.max() - X.min())  # Normalize data
 y = to_categorical(labels).astype(int)
 
@@ -77,7 +78,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_
 
 # Define the model
 model = Sequential()
-model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(max_sequence_length, X.shape[2])))
+model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(40, X.shape[2])))
 model.add(Dropout(0.3))
 model.add(LSTM(256, return_sequences=True, activation='tanh'))
 model.add(Dropout(0.3))
@@ -96,7 +97,7 @@ log_dir = os.path.join('Logs')
 tb_callback = TensorBoard(log_dir=log_dir)
 
 # Train the model
-model.fit(X_train, y_train, epochs=148, batch_size=32, callbacks=[tb_callback], validation_split=0.1)
+model.fit(X_train, y_train, epochs=200, batch_size=32, callbacks=[tb_callback])
 
 # Save the model
 model.save('actions.h5')

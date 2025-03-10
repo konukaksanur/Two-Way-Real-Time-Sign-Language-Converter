@@ -68,7 +68,7 @@ def extract_keypoints(results):
 
 
 def process_videos():
-    DATA_PATH = "keypoints_with_pose_constant"  # Keypoint'leri kaydetmek için klasör
+    DATA_PATH = "keypoints"  # Keypoint'leri kaydetmek için klasör
     VIDEO_PATH = "data"  # Videoların ana klasörü
 
     SEQUENCE_LENGTH = 40
