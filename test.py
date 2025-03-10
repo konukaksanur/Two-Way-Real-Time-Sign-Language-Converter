@@ -1,90 +1,77 @@
+# 1. New detection variables
 import cv2
-import numpy as np
-import mediapipe as mp
-from tensorflow.keras.models import load_model
 import os
+import numpy as np
+from tensorflow.keras.models import load_model
+from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_keypoints
 
-# Mediapipe models
-mp_holistic = mp.solutions.holistic
-mp_drawing = mp.solutions.drawing_utils
+sequence = []
+sentence = []
+threshold = 0.7
+actions = np.array(os.listdir("keypoints"))
+model = load_model('actions.h5')
+cap = cv2.VideoCapture(0)
 
-# Model ve etiketleri yükle
-MODEL_PATH = "actions.h5"
-DATA_PATH = "keypoints"  # Eğitimde kullanılan veri yolu
-actions = np.array(os.listdir(DATA_PATH))  # Sınıf isimlerini al
-model = load_model(MODEL_PATH)
+colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245),(16, 245, 245)]
+def prob_viz(res, actions, input_frame, colors):
+    output_frame = input_frame.copy()
+    for num, prob in enumerate(res):
+        cv2.rectangle(output_frame, (0, 60 + num * 40), (int(prob * 100), 90 + num * 40), colors[num], -1)
+        cv2.putText(output_frame, actions[num], (0, 85 + num * 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
+                    cv2.LINE_AA)
 
-# **Tahmin için eşik değeri**
-THRESHOLD = 0.8
+    return output_frame
 
-def mediapipe_detection(image, model):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image.flags.writeable = False
-    results = model.process(image)
-    image.flags.writeable = True
-    return cv2.cvtColor(image, cv2.COLOR_RGB2BGR), results
+# Set mediapipe model
+with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    while cap.isOpened():
 
-def extract_keypoints(results):
-    lh = np.array([[res.x, res.y, res.z] for res in
-                   results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21 * 3)
-    rh = np.array([[res.x, res.y, res.z] for res in
-                   results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21 * 3)
-    return np.concatenate([lh, rh])
+        # Read feed
+        ret, frame = cap.read()
 
-def classify_video(video_path):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print("Video açılamadı.")
-        return
+        #frame = cv2.flip(frame, 1)  # Sol-sağ düzeltme
 
-    sequence = []  # Model için giriş dizisi
+        # Make detections
+        image, results = mediapipe_detection(frame, holistic)
+        print(results)
 
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+        # Draw landmarks
+        draw_styled_landmarks(image, results)
 
-            image, results = mediapipe_detection(frame, holistic)
-            mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+        # 2. Prediction logic
+        keypoints = extract_keypoints(results)
+        #         sequence.insert(0,keypoints)
+        #         sequence = sequence[:40]
+        sequence.append(keypoints)
+        sequence = sequence[-40:]
 
-            # Landmarkları çıkar
-            keypoints = extract_keypoints(results)
-            sequence.append(keypoints)
+        if len(sequence) == 40:
+            res = model.predict(np.expand_dims(sequence, axis=0))[0]
+            print(actions[np.argmax(res)])
 
-            # Modelin kabul ettiği uzunluktan fazla olursa, eski frame'leri sil
-            if len(sequence) > 60:
-                sequence.pop(0)
-
-            # En az 30 frame biriktiyse tahmin yap
-            if len(sequence) == 60:
-                input_data = np.expand_dims(sequence, axis=0)  # Model için boyutları ayarla
-                input_data = (input_data - input_data.min()) / (input_data.max() - input_data.min())  # Normalize et
-
-                prediction = model.predict(input_data)[0]  # Modelden tahmin al
-                max_prob = np.max(prediction)  # En yüksek olasılığı al
-                predicted_label = actions[np.argmax(prediction)]  # En yüksek olasılıklı sınıf
-
-                # **Threshold (Eşik) Kontrolü**
-                if max_prob > THRESHOLD:
-                    label = f"{predicted_label} ({max_prob*100:.2f}%)"
+            # 3. Viz logic
+            if res[np.argmax(res)] > threshold:
+                if len(sentence) > 0:
+                    if actions[np.argmax(res)] != sentence[-1]:
+                        sentence.append(actions[np.argmax(res)])
                 else:
-                    label = "Bilinmeyen Hareket"
+                    sentence.append(actions[np.argmax(res)])
 
-                # Tahmini ekrana yazdır
-                cv2.putText(image, f"Prediction: {label}", (10, 40),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                print(label)
+            if len(sentence) > 5:
+                sentence = sentence[-5:]
 
-            cv2.imshow('Video Classification', image)
-            if cv2.waitKey(10) & 0xFF == ord('q'):
-                break
+            # Viz probabilities
+            image = prob_viz(res, actions, image, colors)
 
+        cv2.rectangle(image, (0, 0), (640, 40), (245, 117, 16), -1)
+        cv2.putText(image, ' '.join(sentence), (3, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Show to screen
+        cv2.imshow('OpenCV Feed', image)
+
+        # Break gracefully
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
     cap.release()
     cv2.destroyAllWindows()
-
-
-# Kullanım
-video_path = "User_7_005.mp4"  # Tahmin yapılacak video dosyası
-classify_video(video_path)
