@@ -3,18 +3,22 @@ import os
 from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense, Dropout, GRU, BatchNormalization
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.callbacks import TensorBoard, EarlyStopping
 from tensorflow.keras.optimizers import Adam
 
 from tensorflow.keras.regularizers import l2
-
 from scipy.interpolate import CubicSpline
+from sklearn.model_selection import KFold
 
 # Define data path and load actions
 DATA_PATH = "keypoints"
-actions = np.array(os.listdir(DATA_PATH))  # Get class names from subdirectories
+
+actions = np.array([
+    d for d in os.listdir(DATA_PATH) 
+    if os.path.isdir(os.path.join(DATA_PATH, d))
+])
 label_map = {label: num for num, label in enumerate(actions)}
 
 
@@ -68,49 +72,82 @@ for action in actions:  # Iterate over each class
             sequences.append(filled_miss_val_window)
             labels.append(label_map[action])
 
+
 # Convert to NumPy arrays and normalize input data
 X = np.array(sequences)
-X = (X - X.min()) / (X.max() - X.min())  # Normalize data
+# X = (X - X.min()) / (X.max() - X.min())  # Normalize data
 y = to_categorical(labels).astype(int)
 
-# Split data into training and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
 
-# Define the model
-model = Sequential()
-model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(40, X.shape[2])))
-model.add(Dropout(0.3))
-model.add(LSTM(256, return_sequences=True, activation='tanh'))
-model.add(Dropout(0.3))
-model.add(LSTM(128, return_sequences=False, activation='tanh'))
-model.add(Dropout(0.3))
-model.add(Dense(128, activation='relu'))
-model.add(Dropout(0.3))
-model.add(Dense(actions.shape[0], activation='softmax'))
 
-# Compile the model
-optimizer = Adam(learning_rate=0.0001)
-model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['categorical_accuracy'])
+k = 10
+kf = KFold(n_splits=k, shuffle=True, random_state=42)
+all_scores = []
 
-# TensorBoard callback
-log_dir = os.path.join('Logs')
-tb_callback = TensorBoard(log_dir=log_dir)
+for fold, (train_index, test_index) in enumerate(kf.split(X)):
+    print(f"\n🔹 Training on Fold {fold+1}/{k}...")
 
-# Train the model
-model.fit(X_train, y_train, epochs=200, batch_size=32, callbacks=[tb_callback])
+    # Eğitim ve doğrulama setlerini oluştur
+    X_train_fold, X_val_fold = X[train_index], X[test_index]
+    y_train_fold, y_val_fold = y[train_index], y[test_index]
 
-# Save the model
+
+    model = Sequential()
+    model.add(LSTM(64, return_sequences=True, activation='tanh', input_shape=(40, X.shape[2])))
+    model.add(LSTM(128, return_sequences=True, activation='tanh'))
+    model.add(LSTM(64, return_sequences=False, activation='tanh'))
+    model.add(Dense(64, activation='tanh'))
+    model.add(Dense(32, activation='tanh'))
+    model.add(Dense(actions.shape[0], activation='softmax'))
+    
+    model.compile(
+        optimizer=Adam(learning_rate=0.0005),
+        loss='categorical_crossentropy',
+        metrics=['categorical_accuracy'])
+
+    # Callbacks (EarlyStopping & TensorBoard)**
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  
+        patience=10,  
+        verbose=1,  
+        mode='min',  
+        restore_best_weights=True
+    )
+
+    log_dir = os.path.join('Logs', f"fold_{fold+1}")
+    tb_callback = TensorBoard(log_dir=log_dir)
+
+    # Modeli Eğit**
+    history = model.fit(
+        X_train_fold, y_train_fold,
+        validation_data=(X_val_fold, y_val_fold),
+        epochs=500,  
+        batch_size=32,  
+        callbacks=[tb_callback, early_stopping],  
+        verbose=1
+    )
+
+    # Fold'un Doğruluk Skorunu Kaydet**
+    val_loss, val_acc = model.evaluate(X_val_fold, y_val_fold, verbose=0)
+    all_scores.append(val_acc)  
+    print(f"✔ Fold {fold+1} Validation Accuracy: {val_acc * 100:.2f}%")
+
+# Ortalama Sonuçları Hesapla**
+mean_accuracy = np.mean(all_scores)
+print(f"\n🚀 K-Fold Cross Validation Sonucu: Ortalama Doğruluk = {mean_accuracy * 100:.2f}%")
+
+# Modeli Kaydet (Son Eğitilen Model)**
 model.save('actions.h5')
 
-# Evaluate the model
-yhat = model.predict(X_test)
-ytrue = np.argmax(y_test, axis=1).tolist()
+# Test Seti ile Modeli Değerlendir**
+yhat = model.predict(X_val_fold)
+ytrue = np.argmax(y_val_fold, axis=1).tolist()
 yhat = np.argmax(yhat, axis=1).tolist()
 
-# Print accuracy and confusion matrix
+# **Doğruluk ve Confusion Matrix Hesapla**
 accuracy = accuracy_score(ytrue, yhat)
-print(f"Model Accuracy: {accuracy * 100:.2f}%")
+print(f"\nModel Accuracy (Son Fold): {accuracy * 100:.2f}%")
 
 conf_matrix = confusion_matrix(ytrue, yhat)
-print("Confusion Matrix:")
+print("\nConfusion Matrix:")
 print(conf_matrix)
