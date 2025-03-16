@@ -7,6 +7,21 @@ import numpy as np
 mp_holistic = mp.solutions.holistic  # To get hand body and face gesture
 mp_drawing = mp.solutions.drawing_utils  # for drawing that features
 
+def calculate_angle(pts1, pts2, pts3):
+
+    pts1 = np.array(pts1)
+    pts2 = np.array(pts2)
+    pts3 = np.array(pts3)
+
+    # create vectors
+    pts2_1 = pts1 - pts2
+    pts2_3 = pts3 - pts2
+
+    cosine_angle = np.dot(pts2_1, pts2_3) / (np.linalg.norm(pts2_1)* np.linalg.norm(pts2_3))
+    angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
+
+    return np.degrees(angle) / 360
+
 def mediapipe_detection(image, model): #opencv bgr mediapipe rgb kullanıyo diye olmuş, non-writeable yapıyoruz ki mediapipe image'ı değiştirmesin
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
     image.flags.writeable = False  # Make image non-writeable for performance
@@ -65,6 +80,91 @@ def extract_keypoints(results):
     # return np.concatenate([pose,face,lh,rh])
     return np.concatenate([pose, lh,rh])
 
+def calculate_wrist_rotation(results):
+    angle_wrist_right, angle_wrist_left = 0, 0  # Varsayılan olarak sıfırla başlat
+
+    if results.right_hand_landmarks:  # Eğer sağ el landmark'ları varsa
+        landmarks = results.right_hand_landmarks.landmark
+
+        wrist_right = [landmarks[mp_holistic.HandLandmark.WRIST.value].x,
+                       landmarks[mp_holistic.HandLandmark.WRIST.value].y,
+                       landmarks[mp_holistic.HandLandmark.WRIST.value].z]
+
+        middle_finger_right = [landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].x,
+                               landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].y,
+                               landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].z]
+
+        index_finger_right = [landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].x,
+                              landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].y,
+                              landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].z]
+
+        angle_wrist_right = calculate_angle(wrist_right, index_finger_right, middle_finger_right)
+
+    if results.left_hand_landmarks:  # Eğer sol el landmark'ları varsa
+        landmarks = results.left_hand_landmarks.landmark
+
+        wrist_left = [landmarks[mp_holistic.HandLandmark.WRIST.value].x,
+                      landmarks[mp_holistic.HandLandmark.WRIST.value].y,
+                      landmarks[mp_holistic.HandLandmark.WRIST.value].z]
+
+        middle_finger_left = [landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].x,
+                              landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].y,
+                              landmarks[mp_holistic.HandLandmark.MIDDLE_FINGER_TIP.value].z]
+
+        index_finger_left = [landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].x,
+                             landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].y,
+                             landmarks[mp_holistic.HandLandmark.INDEX_FINGER_MCP.value].z]
+
+        angle_wrist_left = calculate_angle(wrist_left, index_finger_left, middle_finger_left)
+
+    return angle_wrist_right, angle_wrist_left
+
+         
+
+def extract_angles(landmarks):
+    if (mp_holistic.PoseLandmark.RIGHT_SHOULDER.value in range(len(landmarks)) and
+        mp_holistic.PoseLandmark.RIGHT_ELBOW.value in range(len(landmarks)) and
+        mp_holistic.PoseLandmark.RIGHT_WRIST.value in range(len(landmarks))):
+
+        shoulder_right = [landmarks[mp_holistic.PoseLandmark.RIGHT_SHOULDER.value].x,
+                        landmarks[mp_holistic.PoseLandmark.RIGHT_SHOULDER.value].y,
+                        landmarks[mp_holistic.PoseLandmark.RIGHT_SHOULDER.value].z]
+
+        elbow_right = [landmarks[mp_holistic.PoseLandmark.RIGHT_ELBOW.value].x,
+                    landmarks[mp_holistic.PoseLandmark.RIGHT_ELBOW.value].y,
+                    landmarks[mp_holistic.PoseLandmark.RIGHT_ELBOW.value].z]
+
+        wrist_right = [landmarks[mp_holistic.PoseLandmark.RIGHT_WRIST.value].x,
+                    landmarks[mp_holistic.PoseLandmark.RIGHT_WRIST.value].y,
+                    landmarks[mp_holistic.PoseLandmark.RIGHT_WRIST.value].z]
+
+        angle_right_arm = calculate_angle(shoulder_right, elbow_right, wrist_right)
+
+    else:
+        angle_left_arm = 0
+         
+    if (mp_holistic.PoseLandmark.LEFT_SHOULDER.value in range(len(landmarks)) and
+        mp_holistic.PoseLandmark.LEFT_ELBOW.value in range(len(landmarks)) and
+        mp_holistic.PoseLandmark.LEFT_WRIST.value in range(len(landmarks))):
+
+        shoulder_left = [landmarks[mp_holistic.PoseLandmark.LEFT_SHOULDER.value].x,
+                            landmarks[mp_holistic.PoseLandmark.LEFT_SHOULDER.value].y,
+                            landmarks[mp_holistic.PoseLandmark.LEFT_SHOULDER.value].z]
+
+        elbow_left = [landmarks[mp_holistic.PoseLandmark.LEFT_ELBOW.value].x,
+                        landmarks[mp_holistic.PoseLandmark.LEFT_ELBOW.value].y,
+                        landmarks[mp_holistic.PoseLandmark.LEFT_ELBOW.value].z]
+
+        wrist_left = [landmarks[mp_holistic.PoseLandmark.LEFT_WRIST.value].x,
+                        landmarks[mp_holistic.PoseLandmark.LEFT_WRIST.value].y,
+                        landmarks[mp_holistic.PoseLandmark.LEFT_WRIST.value].z]
+
+        angle_left_arm = calculate_angle(shoulder_left, elbow_left, wrist_left)
+
+    else:
+        angle_left_arm = 0
+
+    return angle_right_arm, angle_left_arm
 
 
 def process_videos():
@@ -113,10 +213,23 @@ def process_videos():
                         # Keypoint çıkarma
                         keypoints = extract_keypoints(results)
 
+                        angles = []
+                        if results.pose_landmarks:
+                            landmarks = results.pose_landmarks.landmark
+                            angles = list(extract_angles(landmarks))
+                        else: 
+                            angles = [0, 0] 
+
+                        angles += list(calculate_wrist_rotation(results)) 
+
+
+                        combined_data = np.concatenate([keypoints, np.array(angles)])
+
+
                         # Her bir frame'in keypoint'ini ayrı dosyaya kaydet
                         save_folder = os.path.join(DATA_PATH, folder_name, video_name.split('.')[0])
                         os.makedirs(save_folder, exist_ok=True)
-                        np.save(os.path.join(save_folder, f"frame_{frame_counter}.npy"), keypoints)
+                        np.save(os.path.join(save_folder, f"frame_{frame_counter}.npy"), combined_data)
 
                         # Video işleme durumunu göster
                         cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_counter}", (15, 30),

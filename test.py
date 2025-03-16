@@ -3,16 +3,30 @@ import cv2
 import os
 import numpy as np
 from tensorflow.keras.models import load_model
-from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_keypoints
+from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_keypoints, extract_angles, calculate_wrist_rotation
 
 sequence = []
 sentence = []
-threshold = 0.7
-actions = np.array(os.listdir("keypoints"))
+threshold = 0.9
+
+DATA_PATH = "keypoints"
+
+actions = np.array([
+    d for d in os.listdir(DATA_PATH) 
+    if os.path.isdir(os.path.join(DATA_PATH, d))
+])
 model = load_model('actions.h5')
+# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/ad/User_2_001.mp4
+# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/anne/User_2_001.mp4
+# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/birSeyDegil/User_2_001.mp4
+# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/tesekkur/User_5_003.mp4
 cap = cv2.VideoCapture(0)
 
-colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245),(16, 245, 245)]
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245)] * (len(actions) // 3 + 1)
+colors = colors[:len(actions)]
 def prob_viz(res, actions, input_frame, colors):
     output_frame = input_frame.copy()
     for num, prob in enumerate(res):
@@ -42,7 +56,22 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         keypoints = extract_keypoints(results)
         #         sequence.insert(0,keypoints)
         #         sequence = sequence[:40]
-        sequence.append(keypoints)
+
+        angles = []
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+            angles = list(extract_angles(landmarks))
+        else: 
+            angles = [0, 0] 
+
+        angles += list(calculate_wrist_rotation(results)) 
+
+
+        combined_data = np.concatenate([keypoints, np.array(angles)])
+
+
+
+        sequence.append(combined_data)
         sequence = sequence[-40:]
 
         if len(sequence) == 40:
@@ -54,6 +83,7 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
                 if len(sentence) > 0:
                     if actions[np.argmax(res)] != sentence[-1]:
                         sentence.append(actions[np.argmax(res)])
+                        # sequence.clear()
                 else:
                     sentence.append(actions[np.argmax(res)])
 

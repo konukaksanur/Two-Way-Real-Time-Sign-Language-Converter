@@ -8,13 +8,14 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping
 from tensorflow.keras.optimizers import Adam
 
-from tensorflow.keras.regularizers import l2
 from scipy.interpolate import CubicSpline
 from sklearn.model_selection import KFold
 
+from tensorflow.keras.regularizers import l2
+
+
 # Define data path and load actions
 DATA_PATH = "keypoints"
-
 actions = np.array([
     d for d in os.listdir(DATA_PATH) 
     if os.path.isdir(os.path.join(DATA_PATH, d))
@@ -93,39 +94,44 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
 
 
     model = Sequential()
-    model.add(LSTM(64, return_sequences=True, activation='tanh', input_shape=(40, X.shape[2])))
-    model.add(LSTM(128, return_sequences=True, activation='tanh'))
-    model.add(LSTM(64, return_sequences=False, activation='tanh'))
-    model.add(Dense(64, activation='tanh'))
-    model.add(Dense(32, activation='tanh'))
-    model.add(Dense(actions.shape[0], activation='softmax'))
-    
-    model.compile(
-        optimizer=Adam(learning_rate=0.0005),
-        loss='categorical_crossentropy',
-        metrics=['categorical_accuracy'])
+    model.add(LSTM(64, return_sequences=True, activation='tanh', input_shape=(X.shape[1], X.shape[2]), kernel_regularizer=l2(0.01)))
+    model.add(BatchNormalization())  
+    model.add(Dropout(0.3))  
 
-    # Callbacks (EarlyStopping & TensorBoard)**
+    model.add(LSTM(32, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(BatchNormalization())  
+    model.add(Dropout(0.3))  
+
+    model.add(LSTM(16, return_sequences=False, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(Dense(32, activation='tanh',kernel_regularizer=l2(0.01)))
+    model.add(Dense(16, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(Dense(actions.shape[0], activation='softmax'))
+
+    model.compile(optimizer=Adam(learning_rate=0.0005),
+                loss='categorical_crossentropy',
+                metrics=['categorical_accuracy'])
+
+
+    from tensorflow.keras.callbacks import ReduceLROnPlateau
+
+    reduce_lr = ReduceLROnPlateau(
+        monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6, verbose=1
+    )
+
     early_stopping = EarlyStopping(
-        monitor='val_loss',  
-        patience=10,  
-        verbose=1,  
-        mode='min',  
-        restore_best_weights=True
+        monitor='val_loss', patience=20, restore_best_weights=True
     )
 
     log_dir = os.path.join('Logs', f"fold_{fold+1}")
     tb_callback = TensorBoard(log_dir=log_dir)
 
-    # Modeli Eğit**
-    history = model.fit(
-        X_train_fold, y_train_fold,
-        validation_data=(X_val_fold, y_val_fold),
-        epochs=500,  
-        batch_size=32,  
-        callbacks=[tb_callback, early_stopping],  
-        verbose=1
-    )
+    model.fit(X_train_fold, y_train_fold,
+            validation_data=(X_val_fold, y_val_fold),
+            epochs=200, batch_size=32,
+            callbacks=[tb_callback, early_stopping, reduce_lr],
+            verbose=1)
+
+
 
     # Fold'un Doğruluk Skorunu Kaydet**
     val_loss, val_acc = model.evaluate(X_val_fold, y_val_fold, verbose=0)
