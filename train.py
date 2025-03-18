@@ -94,17 +94,17 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
 
 
     model = Sequential()
-    model.add(LSTM(64, return_sequences=True, activation='tanh', input_shape=(X.shape[1], X.shape[2]), kernel_regularizer=l2(0.01)))
+    model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(X.shape[1], X.shape[2]), kernel_regularizer=l2(0.01)))
     model.add(BatchNormalization())  
     model.add(Dropout(0.3))  
 
-    model.add(LSTM(32, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(LSTM(64, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01)))
     model.add(BatchNormalization())  
     model.add(Dropout(0.3))  
 
-    model.add(LSTM(16, return_sequences=False, activation='tanh', kernel_regularizer=l2(0.01)))
-    model.add(Dense(32, activation='tanh',kernel_regularizer=l2(0.01)))
-    model.add(Dense(16, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(LSTM(32, return_sequences=False, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(Dense(64, activation='tanh',kernel_regularizer=l2(0.01)))
+    model.add(Dense(32, activation='tanh', kernel_regularizer=l2(0.01)))
     model.add(Dense(actions.shape[0], activation='softmax'))
 
     model.compile(optimizer=Adam(learning_rate=0.0005),

@@ -3,11 +3,11 @@ import cv2
 import os
 import numpy as np
 from tensorflow.keras.models import load_model
-from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_keypoints, extract_angles, calculate_wrist_rotation
+from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_features
 
 sequence = []
 sentence = []
-threshold = 0.9
+threshold = 0.7
 
 DATA_PATH = "keypoints"
 
@@ -43,7 +43,7 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         # Read feed
         ret, frame = cap.read()
 
-        #frame = cv2.flip(frame, 1)  # Sol-sağ düzeltme
+        # frame = cv2.flip(frame, 1)  # Sol-sağ düzeltme
 
         # Make detections
         image, results = mediapipe_detection(frame, holistic)
@@ -52,26 +52,9 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         # Draw landmarks
         draw_styled_landmarks(image, results)
 
-        # 2. Prediction logic
-        keypoints = extract_keypoints(results)
-        #         sequence.insert(0,keypoints)
-        #         sequence = sequence[:40]
+        image, features = extract_features(image, results)
 
-        angles = []
-        if results.pose_landmarks:
-            landmarks = results.pose_landmarks.landmark
-            angles = list(extract_angles(landmarks))
-        else: 
-            angles = [0, 0] 
-
-        angles += list(calculate_wrist_rotation(results)) 
-
-
-        combined_data = np.concatenate([keypoints, np.array(angles)])
-
-
-
-        sequence.append(combined_data)
+        sequence.append(features)
         sequence = sequence[-40:]
 
         if len(sequence) == 40:
