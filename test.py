@@ -55,10 +55,11 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         image, features = extract_features(image, results)
 
         sequence.append(features)
-        sequence = sequence[-40:]
+        sequence = sequence[-60:]
 
-        if len(sequence) == 40:
+        if len(sequence) == 60:
             res = model.predict(np.expand_dims(sequence, axis=0))[0]
+            
             print(actions[np.argmax(res)])
 
             # 3. Viz logic

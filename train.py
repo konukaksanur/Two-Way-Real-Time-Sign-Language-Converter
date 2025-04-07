@@ -5,14 +5,12 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, GRU, BatchNormalization
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks import TensorBoard, EarlyStopping
+from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
 
 from scipy.interpolate import CubicSpline
 from sklearn.model_selection import KFold
-
-from tensorflow.keras.regularizers import l2
-
 
 # Define data path and load actions
 DATA_PATH = "keypoints"
@@ -112,8 +110,6 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
                 metrics=['categorical_accuracy'])
 
 
-    from tensorflow.keras.callbacks import ReduceLROnPlateau
-
     reduce_lr = ReduceLROnPlateau(
         monitor='val_loss', factor=0.5, patience=5, min_lr=1e-6, verbose=1
     )
@@ -140,7 +136,7 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
 
 # Ortalama Sonuçları Hesapla**
 mean_accuracy = np.mean(all_scores)
-print(f"\n🚀 K-Fold Cross Validation Sonucu: Ortalama Doğruluk = {mean_accuracy * 100:.2f}%")
+print(f"\n K-Fold Cross Validation Sonucu: Ortalama Doğruluk = {mean_accuracy * 100:.2f}%")
 
 # Modeli Kaydet (Son Eğitilen Model)**
 model.save('actions.h5')
