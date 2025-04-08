@@ -124,11 +124,49 @@ def extract_keypoints(results):
     # return np.concatenate([pose,face,lh,rh])
     return np.concatenate([pose, lh,rh])
 
+def calculate_distance(p1, p2):
+    return np.linalg.norm(np.array(p1) - np.array(p2))
+
+def calculate_intra_hand_distances(image, results):
+
+    joint_list = [
+        [4, 8], [4, 12], [4, 16], [8, 12], [8, 16], [16, 20],   # TIP - TIP
+        [0, 4], [0, 8], [0, 12], [0, 16], [0, 20],              # TIP - WRIST
+        [4, 2], [8, 5], [12, 9], [16, 13], [20, 17],            # TIP - MCP
+        ]   
+
+    hands = [results.right_hand_landmarks, results.left_hand_landmarks]
+    finger_dist = []
+
+    for landmarks in hands:
+        if landmarks:
+            landmark = landmarks.landmark
+
+            wrist = [landmark[0].x, landmark[0].y, landmark[0].z]
+            middle_finger_mcp = [landmark[9].x, landmark[9].y, landmark[9].z]
+    
+            # Reference bone length
+            ref_dist = calculate_distance(wrist, middle_finger_mcp)
+
+            for j0, j1 in joint_list:
+                tip1 = [landmark[j0].x, landmark[j0].y, landmark[j0].z]
+                tip2 = [landmark[j1].x, landmark[j1].y, landmark[j1].z]
+
+                distance = calculate_distance(tip1, tip2) / ref_dist
+                finger_dist.append(distance)
+                # draw_line(image, distance, pt2)
+
+        else: 
+            finger_dist.extend([0] * 21)
+
+    return image, np.array(finger_dist)
+
 def extract_features(image, results):
 
     keypoints = extract_keypoints(results)
     image, elbow_angles = calculate_elbow_angles(image, results)
     image, wrist_angles = calculate_wrist_rotation(image, results)
     image, finger_angles = calculate_finger_angles(image, results)
+    image, finger_distances = calculate_intra_hand_distances(image, results)
 
-    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles])
+    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, finger_distances])
