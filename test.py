@@ -16,10 +16,6 @@ actions = np.array([
     if os.path.isdir(os.path.join(DATA_PATH, d))
 ])
 model = load_model('actions.h5')
-# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/ad/User_2_001.mp4
-# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/anne/User_2_001.mp4
-# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/birSeyDegil/User_2_001.mp4
-# /Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/data/tesekkur/User_5_003.mp4
 cap = cv2.VideoCapture(0)
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)

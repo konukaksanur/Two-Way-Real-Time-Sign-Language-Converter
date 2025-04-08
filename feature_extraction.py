@@ -157,7 +157,7 @@ def calculate_intra_hand_distances(image, results):
                 # draw_line(image, distance, pt2)
 
         else: 
-            finger_dist.extend([0] * 21)
+            finger_dist.extend([0] * 16)
 
     return image, np.array(finger_dist)
 
