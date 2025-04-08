@@ -7,7 +7,7 @@ from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extrac
 
 sequence = []
 sentence = []
-threshold = 0.9
+threshold = 0.95
 
 DATA_PATH = "keypoints"
 
@@ -63,7 +63,7 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
                 if len(sentence) > 0:
                     if actions[np.argmax(res)] != sentence[-1]:
                         sentence.append(actions[np.argmax(res)])
-                        sequence.clear()
+                        # sequence.clear()
                 else:
                     sentence.append(actions[np.argmax(res)])
 

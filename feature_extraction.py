@@ -89,28 +89,31 @@ def calculate_wrist_rotation(image, results):
     return image, np.array(wrist_rotation)
          
 
-def calculate_elbow_angles(image, results):
-    joint_list = [[12, 14, 16], [11, 13, 15]]
-    elbow_angles = []
+def calculate_arm_angles(image, results):
+    joint_list = [
+                [12, 14, 16], [11, 13, 15],  # elbow angle: shoulder - elbow - wrist
+                [13, 11, 23], [14, 12, 24]  # shoulder angle: elbow - shoulder - hip
+                ]
+    angles = []
 
     if results.pose_landmarks:
-        for shoulder_id, elbow_id, wrist_id in joint_list:
+        for j0, j1, j2 in joint_list:
             
-            shoulder = results.pose_landmarks.landmark[shoulder_id]
-            elbow = results.pose_landmarks.landmark[elbow_id]
-            wrist = results.pose_landmarks.landmark[wrist_id]
+            j0_landmark = results.pose_landmarks.landmark[j0]
+            j1_landmark = results.pose_landmarks.landmark[j1]
+            j2_landmark = results.pose_landmarks.landmark[j2]
 
-            shoulder_coords = [shoulder.x, shoulder.y, shoulder.z]
-            elbow_coords = [elbow.x, elbow.y, elbow.z]
-            wrist_coords = [wrist.x, wrist.y, wrist.z]
+            shoulder_coords = [j0_landmark.x, j0_landmark.y, j0_landmark.z]
+            elbow_coords = [j1_landmark.x, j1_landmark.y, j1_landmark.z]
+            wrist_coords = [j2_landmark.x, j2_landmark.y, j2_landmark.z]
 
             angle = calculate_angle(shoulder_coords, elbow_coords, wrist_coords)
             draw_angle(image, angle, elbow_coords)
-            elbow_angles.append(angle)
+            angles.append(angle)
     else:
-        elbow_angles.extend([0] *2)
+        angles = [0] * 4
     
-    return image, np.array(elbow_angles)
+    return image, np.array(angles)
 
 def extract_keypoints(results):
     pose = np.array([[res.x, res.y, res.z, res.visibility] for res in
@@ -122,7 +125,7 @@ def extract_keypoints(results):
     rh = np.array([[res.x, res.y, res.z] for res in
                     results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21 * 3)
     # return np.concatenate([pose,face,lh,rh])
-    return np.concatenate([pose, lh,rh])
+    return np.concatenate([pose, lh, rh])
 
 def calculate_distance(p1, p2):
     return np.linalg.norm(np.array(p1) - np.array(p2))
@@ -181,6 +184,33 @@ def calculate_inter_hand_distances(image, results):
         finger_dist = [0] * (21 * 21)
     return image, np.array(finger_dist)
 
+def calculate_hand_pose_distance(image, results):
+    hand_pose_distance = []
+
+    joint_list = [
+        [15, 0], [15, 11], [15, 13], [15, 23],  # Right wrist - nose / shoulder / elbow / hip
+        [16, 0], [16, 12], [16, 14], [16, 24]   # Left wrist - nose / shoulder / elbow / hip
+    ]
+
+    if results.pose_landmarks:
+
+        ref_dist = get_shoulder_distance(results)
+
+        for j0, j1 in joint_list:
+            
+            j0_landmark = results.pose_landmarks.landmark[j0]
+            j1_landmark = results.pose_landmarks.landmark[j1]
+
+            j0_coords = [j0_landmark.x, j0_landmark.y, j0_landmark.z]
+            j1_coords = [j1_landmark.x, j1_landmark.y, j1_landmark.z]
+
+            distance = calculate_distance(j0_coords, j1_coords) / (3 * ref_dist)
+            hand_pose_distance.append(distance)
+    else:
+        hand_pose_distance = [0] * 8
+
+    return image, np.array(hand_pose_distance)
+
 def get_shoulder_distance(results):
     pose_landmarks = results.pose_landmarks.landmark
     left_shoulder = get_coordinates(pose_landmarks, 12)
@@ -199,11 +229,12 @@ def get_coordinates(landmark, joint_id):
 def extract_features(image, results):
 
     keypoints = extract_keypoints(results)
-    image, elbow_angles = calculate_elbow_angles(image, results)
+    image, elbow_angles = calculate_arm_angles(image, results)
     image, wrist_angles = calculate_wrist_rotation(image, results)
     image, finger_angles = calculate_finger_angles(image, results)
     image, intra_hand_distances = calculate_intra_hand_distances(image, results)
     image, inter_hand_distance = calculate_inter_hand_distances(image, results)
+    image, hand_pose_distance = calculate_hand_pose_distance(image, results)
 
-    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, intra_hand_distances, inter_hand_distance])
+    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, intra_hand_distances, inter_hand_distance, hand_pose_distance])
 
