@@ -161,12 +161,49 @@ def calculate_intra_hand_distances(image, results):
 
     return image, np.array(finger_dist)
 
+def calculate_inter_hand_distances(image, results):
+    finger_dist = []
+
+    if results.right_hand_landmarks and results.left_hand_landmarks and results.pose_landmarks:
+        landmark_r = results.right_hand_landmarks.landmark
+        landmark_l = results.left_hand_landmarks.landmark
+
+        ref_dist = get_shoulder_distance(results)
+
+        for j_r in range(21):
+            for j_l in range(21):
+                tip1 = [landmark_r[j_r].x, landmark_r[j_r].y, landmark_r[j_r].z]
+                tip2 = [landmark_l[j_l].x, landmark_l[j_l].y, landmark_l[j_l].z]
+
+                distance = calculate_distance(tip1, tip2) / (3.5 * ref_dist)
+                finger_dist.append(distance)
+    else:
+        finger_dist = [0] * (21 * 21)
+    return image, np.array(finger_dist)
+
+def get_shoulder_distance(results):
+    pose_landmarks = results.pose_landmarks.landmark
+    left_shoulder = get_coordinates(pose_landmarks, 12)
+    right_shoulder = get_coordinates(pose_landmarks, 11)
+
+    return calculate_distance(left_shoulder, right_shoulder)
+
+    
+def get_coordinates(landmark, joint_id):
+    x = landmark[joint_id].x
+    y = landmark[joint_id].y
+    z = landmark[joint_id].z
+
+    return [x, y, z]
+
 def extract_features(image, results):
 
     keypoints = extract_keypoints(results)
     image, elbow_angles = calculate_elbow_angles(image, results)
     image, wrist_angles = calculate_wrist_rotation(image, results)
     image, finger_angles = calculate_finger_angles(image, results)
-    image, finger_distances = calculate_intra_hand_distances(image, results)
+    image, intra_hand_distances = calculate_intra_hand_distances(image, results)
+    image, inter_hand_distance = calculate_inter_hand_distances(image, results)
 
-    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, finger_distances])
+    return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, intra_hand_distances, inter_hand_distance])
+
