@@ -7,9 +7,12 @@ from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extrac
 
 sequence = []
 sentence = []
-threshold = 0.95
+threshold = 0.85
 
 DATA_PATH = "keypoints"
+
+lock_duration = 15
+frame_lock_counter = 0 
 
 actions = np.array([
     d for d in os.listdir(DATA_PATH) 
@@ -60,12 +63,22 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
 
             # 3. Viz logic
             if res[np.argmax(res)] > threshold:
-                if len(sentence) > 0:
-                    if actions[np.argmax(res)] != sentence[-1]:
-                        sentence.append(actions[np.argmax(res)])
-                        # sequence.clear()
+                # if len(sentence) > 0:
+                #     if actions[np.argmax(res)] != sentence[-1]:
+                #         sentence.append(actions[np.argmax(res)])
+                #         print(f" {actions[np.argmax(res)]}: {res[np.argmax(res)]}")
+                #         # sequence.clear()
+                # else:
+                #     sentence.append(actions[np.argmax(res)])
+
+                if frame_lock_counter == 0:
+                    predicted_word = actions[np.argmax(res)]
+                    if len(sentence) == 0 or predicted_word != sentence[-1]:
+                        sentence.append(predicted_word)
+                        # print(f"Debounce Prediction: {predicted_word}")
+                    frame_lock_counter = lock_duration  # Lock'u başlat
                 else:
-                    sentence.append(actions[np.argmax(res)])
+                    frame_lock_counter -= 1  # Lock süresi dolana kadar başka tahmin kabul etme
 
             if len(sentence) > 5:
                 sentence = sentence[-5:]

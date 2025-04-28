@@ -20,7 +20,9 @@ def calculate_angle(pts1, pts2, pts3):
     cosine_angle = np.dot(pts2_1, pts2_3) / (np.linalg.norm(pts2_1)* np.linalg.norm(pts2_3))
     angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
 
-    return np.degrees(angle) / 180
+    normalized_angle = angle / np.pi
+
+    return normalized_angle
 
 def calculate_finger_angles(image, results):
 

@@ -58,7 +58,7 @@ def draw_styled_landmarks(image, results):
 
 def process_videos():
     DATA_PATH = "keypoints"  # Keypoint'leri kaydetmek için klasör
-    VIDEO_PATH = "data"  # Videoların ana klasörü
+    VIDEO_PATH = "data_10"  # Videoların ana klasörü
 
     SEQUENCE_LENGTH = 60
 

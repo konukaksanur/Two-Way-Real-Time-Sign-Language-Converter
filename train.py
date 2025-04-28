@@ -3,7 +3,7 @@ import os
 from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout, GRU, BatchNormalization, Bidirectional
+from tensorflow.keras.layers import LSTM, Dense, Dropout, GRU, BatchNormalization, Bidirectional, LayerNormalization
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
@@ -79,9 +79,13 @@ y = to_categorical(labels).astype(int)
 
 
 
-k = 10
+k = 5
 kf = KFold(n_splits=k, shuffle=True, random_state=42)
 all_scores = []
+
+
+best_acc = 0
+best_model = None
 
 for fold, (train_index, test_index) in enumerate(kf.split(X)):
     print(f"\n🔹 Training on Fold {fold+1}/{k}...")
@@ -92,17 +96,19 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
 
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(256, return_sequences=True, activation='tanh', input_shape=(X.shape[1], X.shape[2]), kernel_regularizer=l2(0.01))))
-    model.add(BatchNormalization())  
+    model.add(LSTM(128, return_sequences=True, activation='tanh', input_shape=(X.shape[1], X.shape[2]), kernel_regularizer=l2(0.01)))
+    model.add(LayerNormalization(axis=1))  
+    # model.add(BatchNormalization(axis=1))  
     model.add(Dropout(0.3))  
 
-    model.add(Bidirectional(LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))))
-    model.add(BatchNormalization())  
+    model.add(LSTM(64, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(LayerNormalization(axis=1))  
+    # model.add(BatchNormalization(axis=1))  
     model.add(Dropout(0.3))  
 
-    model.add(Bidirectional(LSTM(64, return_sequences=False, activation='tanh', kernel_regularizer=l2(0.01))))
-    model.add(Dense(128, activation='tanh',kernel_regularizer=l2(0.01)))
-    model.add(Dense(64, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(LSTM(32, return_sequences=False, activation='tanh', kernel_regularizer=l2(0.01)))
+    model.add(Dense(64, activation='tanh',kernel_regularizer=l2(0.01)))
+    model.add(Dense(32, activation='tanh', kernel_regularizer=l2(0.01)))
     model.add(Dense(actions.shape[0], activation='softmax'))
 
     model.compile(optimizer=Adam(learning_rate=0.0005),
@@ -134,12 +140,20 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
     all_scores.append(val_acc)  
     print(f"✔ Fold {fold+1} Validation Accuracy: {val_acc * 100:.2f}%")
 
+    # En iyi modeli kaydet
+    if val_acc > best_acc:
+        best_acc = val_acc
+        best_model = model
+
 # Ortalama Sonuçları Hesapla**
 mean_accuracy = np.mean(all_scores)
 print(f"\n K-Fold Cross Validation Sonucu: Ortalama Doğruluk = {mean_accuracy * 100:.2f}%")
 
-# Modeli Kaydet (Son Eğitilen Model)**
-model.save('actions.h5')
+# En iyi modeli kaydet
+best_model.save('action.h5')
+
+# # Modeli Kaydet (Son Eğitilen Model)**
+# model.save('actions.h5')
 
 # Test Seti ile Modeli Değerlendir**
 yhat = model.predict(X_val_fold)
