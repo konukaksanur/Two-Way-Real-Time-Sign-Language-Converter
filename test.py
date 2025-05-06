@@ -7,7 +7,7 @@ from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extrac
 
 sequence = []
 sentence = []
-threshold = 0.85
+threshold = 0.8
 
 DATA_PATH = "keypoints"
 
@@ -18,7 +18,7 @@ actions = np.array([
     d for d in os.listdir(DATA_PATH) 
     if os.path.isdir(os.path.join(DATA_PATH, d))
 ])
-model = load_model('actions.h5')
+model = load_model('action.h5')
 cap = cv2.VideoCapture(0)
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
