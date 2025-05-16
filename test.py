@@ -7,18 +7,18 @@ from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extrac
 
 sequence = []
 sentence = []
-threshold = 0.8
+threshold = 0.96
 
-DATA_PATH = "keypoints"
+DATA_PATH = "keypoints_24"
 
-lock_duration = 15
+lock_duration = 20
 frame_lock_counter = 0 
 
 actions = np.array([
     d for d in os.listdir(DATA_PATH) 
     if os.path.isdir(os.path.join(DATA_PATH, d))
 ])
-model = load_model('action.h5')
+model = load_model('action2.h5')
 cap = cv2.VideoCapture(0)
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -57,9 +57,35 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         sequence = sequence[-60:]
 
         if len(sequence) == 60:
-            res = model.predict(np.expand_dims(sequence, axis=0))[0]
-            
-            print(actions[np.argmax(res)])
+            sequence_arr = np.array(sequence)
+            # --- Sağ, Sol, Pose için ayır ---
+            X_r_keypoint = sequence_arr[:, 162:225]
+            X_r_wrist = sequence_arr[:, 229:230]
+            X_r_angle = sequence_arr[:, 231:246]
+            X_r_interaction = sequence_arr[:, 261:277]
+            X_right = np.concatenate((X_r_keypoint, X_r_wrist, X_r_angle, X_r_interaction), axis=-1)
+
+            X_l_keypoint = sequence_arr[:, 99:162]
+            X_l_wrist = sequence_arr[:, 230:231]
+            X_l_angle = sequence_arr[:, 246:261]
+            X_l_interaction = sequence_arr[:, 277:293]
+            X_left = np.concatenate((X_l_keypoint, X_l_wrist, X_l_angle, X_l_interaction), axis=-1)
+
+            X_p_keypoint = sequence_arr[:, 0:99]
+            X_p_angle = sequence_arr[:, 225:229]
+            X_p_distance = sequence_arr[:, 299:307]
+            X_p_intra_hand = sequence_arr[:, 293:299]
+            X_pose = np.concatenate((X_p_keypoint, X_p_angle, X_p_distance, X_p_intra_hand), axis=-1)
+
+            res = model.predict([
+                np.expand_dims(X_right, axis=0),
+                np.expand_dims(X_left, axis=0),
+                np.expand_dims(X_pose, axis=0)
+            ], verbose=0)[0]
+
+            best_action_idx = np.argmax(res)
+            best_action_name = actions[best_action_idx]
+            best_action_prob = res[best_action_idx]
 
             # 3. Viz logic
             if res[np.argmax(res)] > threshold:

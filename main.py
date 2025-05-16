@@ -57,8 +57,8 @@ def draw_styled_landmarks(image, results):
         )
 
 def process_videos():
-    DATA_PATH = "keypoints"  # Keypoint'leri kaydetmek için klasör
-    VIDEO_PATH = "data_10"  # Videoların ana klasörü
+    DATA_PATH = "keypoints_24"  # Keypoint'leri kaydetmek için klasör
+    VIDEO_PATH = "keypoints_24"  # Videoların ana klasörü
 
     SEQUENCE_LENGTH = 60
 
@@ -95,7 +95,9 @@ def process_videos():
                         image, results = mediapipe_detection(frame, holistic)
 
                         # Görselleştirme için landmark çizimi
-                        draw_styled_landmarks(image, results)
+                        # draw_styled_landmarks(image, results)
+
+                        print(f"Processing {folder_name}/{video_name} Frame {frame_counter}")
 
                         image, features = extract_features(image, results)
 
@@ -104,10 +106,10 @@ def process_videos():
                         os.makedirs(save_folder, exist_ok=True)
                         np.save(os.path.join(save_folder, f"frame_{frame_counter}.npy"), features)
 
-                        # Video işleme durumunu göster
-                        cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_counter}", (15, 30),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-                        cv2.imshow('Processing Video', image)
+                        # # Video işleme durumunu göster
+                        # cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_counter}", (15, 30),
+                        #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+                        # cv2.imshow('Processing Video', image)
 
                         if cv2.waitKey(10) & 0xFF == ord('q'):
                             break
