@@ -3,10 +3,14 @@ from flask import Flask, request, jsonify
 import numpy as np
 import cv2
 from tensorflow.keras.models import load_model
-from main import mp_holistic, mediapipe_detection, extract_features,draw_styled_landmarks
+from main import mp_holistic, mediapipe_detection, extract_features
 import os
+import mediapipe as mp
 from PIL import Image
 from io import BytesIO
+
+mp_holistic = mp.solutions.holistic  # To get hand body and face gesture
+mp_drawing = mp.solutions.drawing_utils  # for drawing that features
 
 app = Flask(__name__)
 
@@ -22,6 +26,26 @@ sentence = []
 lock_duration = 20
 frame_lock_counter = 0
 
+def draw_styled_landmarks2(image, results):
+    # Drawing landmarks on pose
+    if results.pose_landmarks:
+        mp_drawing.draw_landmarks(
+            image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+
+    # Drawing landmarks on right hand
+    if results.right_hand_landmarks:
+        mp_drawing.draw_landmarks(
+            image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+
+    # Drawing landmarks on left hand
+    if results.left_hand_landmarks:
+        mp_drawing.draw_landmarks(
+            image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+
+    return image
+
+
+
 def predict_from_frame_with_image(frame):
     global sequence, sentence, frame_lock_counter
 
@@ -32,7 +56,7 @@ def predict_from_frame_with_image(frame):
         image, features = extract_features(image, results)
 
         # Landmark çizimlerini ekle
-        image = draw_styled_landmarks(image, results)
+        image = draw_styled_landmarks2(image, results)
 
     if features is None:
         return "", cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
