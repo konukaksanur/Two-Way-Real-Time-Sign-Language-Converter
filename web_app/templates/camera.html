@@ -1,25 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
+  <meta charset="UTF-8">
   <title>Live Sign Detection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+    #prediction-list li {
+      padding: 5px 10px;
+      background-color: #f2f2f2;
+      margin-bottom: 5px;
+      border-radius: 5px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Canlı Görüntü (Keypoint'li)</h1>
-  <video id="video" width="640" height="480" autoplay muted></video>
-  <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
-  <img id="preview" width="640" height="480">
+  <div style="display: flex; gap: 40px; align-items: flex-start;">
+    <!-- Görüntü tarafı -->
+    <div>
+      <h1>Canlı Kamera Görüntüsü</h1>
+      <video id="video" width="640" height="480" autoplay muted style="border: 1px solid #ccc;"></video>
+      <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+      <h2>İşlenmiş Görüntü (Keypoint'li)</h2>
+      <img id="preview" width="640" height="480" style="border: 1px solid #ccc;">
+    </div>
+
+    <!-- Tahmin tarafı -->
+    <div style="min-width: 300px; padding: 10px;">
+      <h2>Tahmin Edilen İşaretler</h2>
+      <ul id="prediction-list" style="list-style: none; padding: 0; font-size: 18px;"></ul>
+    </div>
+  </div>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
     const preview = document.getElementById("preview");
+    const predictionList = document.getElementById("prediction-list");
 
+    // Kamerayı başlat
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
+      })
+      .catch(error => {
+        alert("Kamera erişimi reddedildi: " + error.message);
       });
 
+    // Her 500ms'de bir kare yakala ve sunucuya gönder
     setInterval(() => {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL("image/jpeg");
@@ -32,6 +66,21 @@
       .then(res => res.json())
       .then(data => {
         preview.src = data.processed;
+
+        // Yeni tahmin varsa göster
+        if (data.prediction) {
+          const li = document.createElement("li");
+          li.textContent = data.prediction;
+          predictionList.appendChild(li);
+
+          // En fazla 5 tahmin tutulur
+          if (predictionList.children.length > 5) {
+            predictionList.removeChild(predictionList.firstChild);
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Sunucuya istek gönderilirken hata oluştu:", err);
       });
     }, 500);
   </script>
