@@ -40,7 +40,13 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
+    return render_template("mainmenu.html")
+@app.route('/SignToText')
+def index2():
     return render_template("camera.html")
+@app.route('/TextToSign')
+def index3():
+    return render_template("animation.html")
 
 @app.route('/upload_frame', methods=['POST'])
 def upload_frame():
