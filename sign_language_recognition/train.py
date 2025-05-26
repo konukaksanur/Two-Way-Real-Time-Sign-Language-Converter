@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
@@ -19,7 +20,7 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, LayerNormalization, Mu
 
 
 # Define data path and load actions
-DATA_PATH = "keypoints_24"
+DATA_PATH = "keypoints_175_40"
 actions = np.array([
     d for d in os.listdir(DATA_PATH) 
     if os.path.isdir(os.path.join(DATA_PATH, d))
@@ -49,12 +50,21 @@ def fill_missing_keypoints(sequence):
 
     return sequence 
 
+
+expected_shape = None  # İlk videonun frame boyutunu burada tutacağız
+expected_length = None
+
+sequences, labels = [], []
+
+
 # Data processing
 sequences, labels = [], []
 # before_fill_val = [] # just for check
 for action in actions:  # Iterate over each class
     action_path = os.path.join(DATA_PATH, action)
     for video_folder in os.listdir(action_path):  # Each video
+
+
         video_path = os.path.join(action_path, video_folder)
         if not os.path.isdir(video_path):
             continue
@@ -139,135 +149,125 @@ print(f"num_features: {num_features}")
 y = to_categorical(labels).astype(int)
 
 
+X_right_train, X_right_test, X_left_train, X_left_test, X_pose_train, X_pose_test, y_train, y_test = train_test_split(
+    X_right, X_left, X_pose, y,
+    test_size=0.2,
+    stratify=labels,  # class dengesini korumak için
+    random_state=42
+)
+
+# --- Inputs ---
+input_right = Input(shape=(X_right.shape[1], X_right.shape[2]))
+input_left = Input(shape=(X_left.shape[1], X_left.shape[2]))
+input_pose = Input(shape=(X_pose.shape[1], X_pose.shape[2]))
 
 
-k = 5
-# kf = KFold(n_splits=k, shuffle=True, random_state=42)
-skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
+# --- Sağ el LSTM pipeline ---
+x_r = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_right)
+x_r = LayerNormalization(axis=1)(x_r)
+x_r = Dropout(0.4)(x_r)
 
-all_scores = []
+# --- Sol el LSTM pipeline ---
+x_l = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_left)
+x_l = LayerNormalization(axis=1)(x_l)
+x_l = Dropout(0.4)(x_l)
 
+# --- Pose LSTM pipeline ---
+x_p = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_pose)
+x_p = LayerNormalization(axis=1)(x_p)
+x_p = Dropout(0.4)(x_p)
 
-best_acc = 0
-best_model = None
+# --- Hepsini Attention ile birleştir ---
+merged = Concatenate(axis=2)([x_r, x_l, x_p])
 
-# for fold, (train_index, test_index) in enumerate(kf.split(X)):
-for fold, (train_index, test_index) in enumerate(skf.split(X_right, labels)):
-        
-    print(f"\n🔹 Training on Fold {fold+1}/{k}...")
+attn_small = MultiHeadAttention(num_heads=4, key_dim=32)(merged, merged)
+attn_large = MultiHeadAttention(num_heads=8, key_dim=64)(merged, merged)
+attn_out = Add()([attn_small, attn_large])
+attn_out = LayerNormalization(axis=1)(attn_out)
 
-    # Eğitim ve doğrulama setlerini oluştur
-    X_right_train, X_right_val = X_right[train_index], X_right[test_index]
-    X_left_train, X_left_val = X_left[train_index], X_left[test_index]
-    X_pose_train, X_pose_val = X_pose[train_index], X_pose[test_index]
-    y_train_fold, y_val_fold = y[train_index], y[test_index]
+# --- Global pooling ---
+x = GlobalAveragePooling1D()(attn_out)
 
-    # --- Inputs ---
-    input_right = Input(shape=(X_right.shape[1], X_right.shape[2]))
-    input_left = Input(shape=(X_left.shape[1], X_left.shape[2]))
-    input_pose = Input(shape=(X_pose.shape[1], X_pose.shape[2]))
+# --- Dense layers ---
+x = Dense(512, activation='relu')(x)
+x = Dropout(0.4)(x)
+x = Dense(256, activation='relu')(x)
+x = Dropout(0.3)(x)
 
-    # --- Sağ el LSTM pipeline ---
-    x_r = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_right)
-    x_r = LayerNormalization(axis=1)(x_r)
-    x_r = Dropout(0.4)(x_r)
+# --- Output ---
+output_layer = Dense(len(actions), activation='softmax')(x)
 
-    # --- Sol el LSTM pipeline ---
-    x_l = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_left)
-    x_l = LayerNormalization(axis=1)(x_l)
-    x_l = Dropout(0.4)(x_l)
-
-    # --- Pose LSTM pipeline ---
-    x_p = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_pose)
-    x_p = LayerNormalization(axis=1)(x_p)
-    x_p = Dropout(0.4)(x_p)
-
-    # --- Hepsini Attention ile birleştir ---
-    merged = Concatenate(axis=2)([x_r, x_l, x_p])
-
-    attn_small = MultiHeadAttention(num_heads=4, key_dim=32)(merged, merged)
-    attn_large = MultiHeadAttention(num_heads=8, key_dim=64)(merged, merged)
-    attn_out = Add()([attn_small, attn_large])
-    attn_out = LayerNormalization(axis=1)(attn_out)
-
-    # --- Global pooling ---
-    x = GlobalAveragePooling1D()(attn_out)
-
-    # --- Dense layers ---
-    x = Dense(512, activation='relu')(x)
-    x = Dropout(0.4)(x)
-    x = Dense(256, activation='relu')(x)
-    x = Dropout(0.3)(x)
-
-    # --- Output ---
-    output_layer = Dense(len(actions), activation='softmax')(x)
-
-    # Model
-    model = Model(inputs=[input_right, input_left, input_pose], outputs=output_layer)
+# Model
+model = Model(inputs=[input_right, input_left, input_pose], outputs=output_layer)
 
 
-    model.compile(optimizer=Adam(learning_rate=0.0005),
-                  loss='categorical_crossentropy',
-                  metrics=['categorical_accuracy'])
+model.compile(optimizer=Adam(learning_rate=0.0005),
+                loss='categorical_crossentropy',
+                metrics=['categorical_accuracy'])
 
 
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1
+)
 
-    reduce_lr = ReduceLROnPlateau(
-        monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1
-    )
+early_stopping = EarlyStopping(
+    monitor='val_loss', patience=30, restore_best_weights=True
+)
+log_dir = os.path.join('Logs')
+tb_callback = TensorBoard(log_dir=log_dir)
 
-    early_stopping = EarlyStopping(
-        monitor='val_loss', patience=30, restore_best_weights=True
-    )
+# --- Training ---
+history = model.fit(
+    [X_right_train, X_left_train, X_pose_train], y_train,
+    validation_data=([X_right_test, X_left_test, X_pose_test], y_test),
+    epochs=100,
+    batch_size=64,
+    callbacks=[tb_callback, early_stopping, reduce_lr],
+    verbose=1
+)
 
-    log_dir = os.path.join('Logs', f"fold_{fold+1}")
-    tb_callback = TensorBoard(log_dir=log_dir)
+# Fold'un Doğruluk Skorunu Kaydet**
+val_loss, val_acc = model.evaluate([X_right_test, X_left_test, X_pose_test], y_test, verbose=0)
+print(f"\nTest Accuracy: {val_acc * 100:.2f}%")
 
-    model.fit(
-        [X_right[train_index], X_left[train_index], X_pose[train_index]],
-        y_train_fold,
-        validation_data=(
-            [X_right[test_index], X_left[test_index], X_pose[test_index]],
-            y_val_fold
-        ),
-        epochs=100,
-        batch_size=64,
-        callbacks=[tb_callback, early_stopping, reduce_lr],
-        verbose=1
-    )
+# Modeli kaydet
+model.save('action6.h5')
 
-
-
-
-    # Fold'un Doğruluk Skorunu Kaydet**
-    val_loss, val_acc = model.evaluate([X_right_val, X_left_val, X_pose_val], y_val_fold, verbose=0)
-    all_scores.append(val_acc)  
-    print(f"✔ Fold {fold+1} Validation Accuracy: {val_acc * 100:.2f}%")
-
-    # En iyi modeli kaydet
-    if val_acc > best_acc:
-        best_acc = val_acc
-        best_model = model
-
-# Ortalama Sonuçları Hesapla**
-mean_accuracy = np.mean(all_scores)
-print(f"\n K-Fold Cross Validation Sonucu: Ortalama Doğruluk = {mean_accuracy * 100:.2f}%")
-
-# En iyi modeli kaydet
-best_model.save('action2.h5')
-
-# # Modeli Kaydet (Son Eğitilen Model)**
-# model.save('actions.h5')
-
-# Test Seti ile Modeli Değerlendir**
-yhat = model.predict([X_right_val, X_left_val, X_pose_val])
-ytrue = np.argmax(y_val_fold, axis=1).tolist()
+# Evaluate the model
+yhat = model.predict([X_right_test, X_left_test, X_pose_test])
+ytrue = np.argmax(y_test, axis=1).tolist()
 yhat = np.argmax(yhat, axis=1).tolist()
 
-# **Doğruluk ve Confusion Matrix Hesapla**
+# Print accuracy and confusion matrix
 accuracy = accuracy_score(ytrue, yhat)
-print(f"\nModel Accuracy (Son Fold): {accuracy * 100:.2f}%")
+print(f"Model Accuracy: {accuracy * 100:.2f}%")
 
 conf_matrix = confusion_matrix(ytrue, yhat)
-print("\nConfusion Matrix:")
+print("Confusion Matrix:")
 print(conf_matrix)
+
+
+plt.figure(figsize=(8, 4))
+plt.plot(history.history['categorical_accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_categorical_accuracy'], label='Validation Accuracy')
+plt.title('Model Accuracy Over Epochs')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(loc='lower right')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('accuracy_over_epochs.png', dpi=300)
+plt.show()
+
+# --- Loss Graph ---
+plt.figure(figsize=(8, 4))
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Model Loss Over Epochs')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend(loc='upper right')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('loss_over_epochs.png', dpi=300)
+plt.show()

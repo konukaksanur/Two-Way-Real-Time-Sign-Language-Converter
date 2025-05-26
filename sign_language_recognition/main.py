@@ -3,7 +3,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-from feature_extraction import extract_features  # Import the feature extraction function
+from feature_extraction import extract_features
 
 # Mediapipe models and utilities
 mp_holistic = mp.solutions.holistic  # To get hand body and face gesture
@@ -57,10 +57,10 @@ def draw_styled_landmarks(image, results):
         )
 
 def process_videos():
-    DATA_PATH = "keypoints_24"  # Keypoint'leri kaydetmek için klasör
-    VIDEO_PATH = "keypoints_24"  # Videoların ana klasörü
+    DATA_PATH = "/Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/keypoints_175_40"  # Keypoint'leri kaydetmek için klasör
+    VIDEO_PATH = "data"  # Videoların ana klasörü
 
-    SEQUENCE_LENGTH = 60
+    SEQUENCE_LENGTH = 40
 
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         for folder_name in os.listdir(VIDEO_PATH):  # Ana klasördeki her alt klasörü kontrol et
@@ -78,7 +78,7 @@ def process_videos():
                     print(f"Could not open video: {video_path}")
                     continue
 
-#
+
                 video_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 skip_frames_window = max(int(video_frame_count / SEQUENCE_LENGTH), 1)
 

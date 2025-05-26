@@ -1,24 +1,65 @@
 # 1. New detection variables
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+from PIL import Image as PILImage, ImageDraw, ImageFont
 import cv2
 import os
 import numpy as np
 from tensorflow.keras.models import load_model
 from main import mp_holistic, mediapipe_detection, draw_styled_landmarks, extract_features
+import pandas as pd
+
+
+def draw_text_matplotlib(img, text, position=(10, 10), font_size=20):
+    # DejaVu Sans fontunun sistem yolunu otomatik bul
+    font_path = font_manager.findfont("DejaVu Sans")  # Bu yol kesin çalışır
+    img_pil = PILImage.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(img_pil)
+
+    font = ImageFont.truetype(font_path, font_size)
+    draw.text(position, text, font=font, fill=(255, 255, 255))
+
+    return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+
+
+
+# CSV'deki eşleştirme tablosunu yükle
+import os
+
+BASE_DIR = os.path.dirname(__file__)
+
+csv_path = os.path.join(BASE_DIR, "class_map.csv")
+df = pd.read_csv(csv_path)
+
+
+
+id_to_name = dict(zip(df["ClassID"], df["ClassName_tr"]))
+
 
 sequence = []
 sentence = []
-threshold = 0.96
+threshold = 0.99
 
-DATA_PATH = "keypoints_24"
+DATA_PATH = os.path.join(BASE_DIR, "keypoints_175_40")
+
+df.columns = df.columns.str.strip()                      
+df["ClassID"] = df["ClassID"].astype(str).str.zfill(4)  
+id_to_name = dict(zip(df["ClassID"], df["ClassName_tr"]))
+
 
 lock_duration = 20
 frame_lock_counter = 0 
 
-actions = np.array([
+folder_ids = [
     d for d in os.listdir(DATA_PATH) 
     if os.path.isdir(os.path.join(DATA_PATH, d))
-])
-model = load_model('action2.h5')
+]
+actions = np.array([id_to_name[d] for d in folder_ids])
+
+
+MODEL_PATH = os.path.join(BASE_DIR, "action2.h5")
+model = load_model(MODEL_PATH)
+
 cap = cv2.VideoCapture(0)
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -30,8 +71,8 @@ def prob_viz(res, actions, input_frame, colors):
     output_frame = input_frame.copy()
     for num, prob in enumerate(res):
         cv2.rectangle(output_frame, (0, 60 + num * 40), (int(prob * 100), 90 + num * 40), colors[num], -1)
-        cv2.putText(output_frame, actions[num], (0, 85 + num * 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
-                    cv2.LINE_AA)
+        image = draw_text_matplotlib(image, ' '.join(sentence), position=(10, 5), font_size=36)
+
 
     return output_frame
 
@@ -54,9 +95,9 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         image, features = extract_features(image, results)
 
         sequence.append(features)
-        sequence = sequence[-60:]
+        sequence = sequence[-40:]
 
-        if len(sequence) == 60:
+        if len(sequence) == 40:
             sequence_arr = np.array(sequence)
             # --- Sağ, Sol, Pose için ayır ---
             X_r_keypoint = sequence_arr[:, 162:225]
@@ -101,7 +142,7 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
                     predicted_word = actions[np.argmax(res)]
                     if len(sentence) == 0 or predicted_word != sentence[-1]:
                         sentence.append(predicted_word)
-                        # print(f"Debounce Prediction: {predicted_word}")
+                        print(f"Debounce Prediction: {predicted_word}, {res[np.argmax(res)]}")
                     frame_lock_counter = lock_duration  # Lock'u başlat
                 else:
                     frame_lock_counter -= 1  # Lock süresi dolana kadar başka tahmin kabul etme
@@ -110,11 +151,11 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
                 sentence = sentence[-5:]
 
             # Viz probabilities
-            image = prob_viz(res, actions, image, colors)
+            # image = prob_viz(res, actions, image, colors)
 
         cv2.rectangle(image, (0, 0), (640, 40), (245, 117, 16), -1)
-        cv2.putText(image, ' '.join(sentence), (3, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        image = draw_text_matplotlib(image, ' '.join(sentence), position=(10, 5), font_size=36)
+
 
         # Show to screen
         cv2.imshow('OpenCV Feed', image)
@@ -124,3 +165,4 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
             break
     cap.release()
     cv2.destroyAllWindows()
+
