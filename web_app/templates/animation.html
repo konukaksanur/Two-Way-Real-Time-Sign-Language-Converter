@@ -1,11 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Animation</title>
+    <title>Sign Language Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f6fa;
+            color: #2f3640;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px 20px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        form {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #7117d0;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #40067d;
+        }
+
+        video {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body>
 
+    <h2>Enter a sentence:</h2>
+
+    <form id="videoForm">
+        <input type="text" id="sentenceInput" placeholder="anne aciklamak ad" required>
+        <button type="submit">Play</button>
+    </form>
+
+    <video id="videoPlayer" width="640" height="360" controls></video>
+
+    <script>
+        const form = document.getElementById("videoForm");
+        const video = document.getElementById("videoPlayer");
+
+        form.addEventListener("submit", function(event) {
+            event.preventDefault();
+            const input = document.getElementById("sentenceInput").value.trim();
+
+            if (input === "") {
+                alert("Please enter a sentence.");
+                return;
+            }
+
+            const words = input.split(" ");
+            const videoQueue = words.map(word => `/static/${word}.mp4`);
+            let index = 0;
+
+            function playNextVideo() {
+                if (index < videoQueue.length) {
+                    video.src = videoQueue[index];
+                    video.load();
+                    video.play();
+                    index++;
+                }
+            }
+
+            video.addEventListener("ended", playNextVideo);
+            playNextVideo();
+        });
+    </script>
 
 </body>
 </html>

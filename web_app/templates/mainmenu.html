@@ -1,12 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Main</title>
+    <title>Ana Sayfa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f1f2f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #2f3640;
+            margin-bottom: 40px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            background-color: #7117d0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #40067d;
+        }
+    </style>
 </head>
 <body>
-  <button onclick="window.location.href='/TextToSign'">Sayfaya Git</button>
-  <button onclick="window.location.href='/SignToText'">Sayfaya Git2</button>
+
+    <h1>Turkish Sign Language Converter</h1>
+
+    <div class="button-container">
+        <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
+        <button onclick="window.location.href='/SignToText'">Sign To Text</button>
+    </div>
 
 </body>
 </html>
