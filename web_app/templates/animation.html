@@ -68,18 +68,40 @@
         const form = document.getElementById("videoForm");
         const video = document.getElementById("videoPlayer");
 
-        form.addEventListener("submit", function(event) {
+        form.addEventListener("submit", async function(event) {
             event.preventDefault();
             const input = document.getElementById("sentenceInput").value.trim();
 
             if (input === "") {
-                alert("Please enter a sentence.");
+                alert("Lütfen bir cümle giriniz.");
                 return;
             }
 
             const words = input.split(" ");
-            const videoQueue = words.map(word => `/static/${word}.mp4`);
+            const videoQueue = [];
+            const missingWords = [];
+
+            for (const word of words) {
+                const videoPath = `/static/${word}.mp4`;
+                try {
+                    const response = await fetch(videoPath, { method: 'HEAD' });
+                    if (response.ok) {
+                        videoQueue.push(videoPath);
+                    } else {
+                        missingWords.push(word);
+                    }
+                } catch (error) {
+                    missingWords.push(word);
+                }
+            }
+
+            if (videoQueue.length === 0) {
+                alert("Hiçbir kelime için video bulunamadı.");
+                return;
+            }
+
             let index = 0;
+            let alertShown = false;
 
             function playNextVideo() {
                 if (index < videoQueue.length) {
@@ -87,9 +109,13 @@
                     video.load();
                     video.play();
                     index++;
+                } else if (!alertShown && missingWords.length > 0) {
+                    alertShown = true;
+                    alert("Şu kelimeler için video bulunamadı: " + missingWords.join(", "));
                 }
             }
 
+            video.removeEventListener("ended", playNextVideo);
             video.addEventListener("ended", playNextVideo);
             playNextVideo();
         });
