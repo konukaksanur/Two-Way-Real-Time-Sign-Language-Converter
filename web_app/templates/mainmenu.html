@@ -24,18 +24,39 @@
       background-color: var(--bg-color);
       color: var(--text-color);
       display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .side-images, .right-images {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .middle {
+      display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
-      padding: 20px;
+      text-align: center;
+    }
+
+    .flag, .sign {
+      width: 130px;
+      border-radius: 6px;
     }
 
     h1 {
-      font-size: 32px;
+      font-size: 28px;
       color: var(--primary-color);
-      margin-bottom: 40px;
-      text-align: center;
+      margin: 20px 0;
     }
 
     .button-container {
@@ -43,11 +64,12 @@
       flex-wrap: wrap;
       gap: 20px;
       justify-content: center;
+      margin-top: 20px;
     }
 
     button {
       padding: 15px 30px;
-      font-size: 18px;
+      font-size: 16px;
       background-color: var(--primary-color);
       color: white;
       border: none;
@@ -63,13 +85,23 @@
   </style>
 </head>
 <body>
+  <div class="container">
+    <div class="side-images">
+      <img src="/static/sign1.png" alt="Flag" class="sign">
+    </div>
 
-  <h1>Turkish Sign Language Converter</h1>
+    <div class="middle">
+      <img src="/static/tr.webp" alt="Sign" class="flag">
+      <h1>Turkish Sign Language Converter</h1>
+      <div class="button-container">
+        <button onclick="window.location.href='/SignToText'">Sign To Text</button>
+        <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
+      </div>
+    </div>
 
-  <div class="button-container">
-    <button onclick="window.location.href='/SignToText'">Sign To Text</button>
-    <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
+    <div class="right-images">
+      <img src="/static/sign2.png" alt="Flag" class="sign">
+    </div>
   </div>
-
 </body>
 </html>
