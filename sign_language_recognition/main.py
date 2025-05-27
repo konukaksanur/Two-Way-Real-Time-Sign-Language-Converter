@@ -3,7 +3,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-from feature_extraction import extract_features
+from .feature_extraction import extract_features
 
 # Mediapipe models and utilities
 mp_holistic = mp.solutions.holistic  # To get hand body and face gesture
