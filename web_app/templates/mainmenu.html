@@ -94,8 +94,8 @@
       <img src="/static/tr.webp" alt="Sign" class="flag">
       <h1>Turkish Sign Language Converter</h1>
       <div class="button-container">
-        <button onclick="window.location.href='/SignToText'">Sign To Text</button>
-        <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
+        <button onclick="navigateToPage('/SignToText')">Sign To Text</button>
+        <button onclick="navigateToPage('/TextToSign')">Text To Sign</button>
       </div>
     </div>
 
@@ -103,5 +103,28 @@
       <img src="/static/sign2.png" alt="Flag" class="sign">
     </div>
   </div>
+
+  <script>
+    async function navigateToPage(url) {
+      // Kamerayı durdur
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Kamera zaten durdurulmuş veya hata:', err);
+      }
+      
+      // Sayfaya yönlendir
+      window.location.href = url;
+    }
+
+    // Sayfa yüklendiğinde kamerayı durdur
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Kamera zaten durdurulmuş veya hata:', err);
+      }
+    });
+  </script>
 </body>
 </html>

@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Sign Language Recognition</title>
+  
+  <!-- Önbellekleme engelleme için meta tag -->
+  <meta http-equiv="Cache-Control" content="no-store" />
+  
   <style>
     :root {
       --primary-color: #003f69;
@@ -36,6 +40,7 @@
       box-shadow: var(--shadow);
       overflow: hidden;
       border: 2px solid #d1dce5;
+      position: relative;
     }
 
     #video-container h2 {
@@ -77,12 +82,39 @@
       max-width: 100%;
       height: auto;
     }
+
+    .navigation {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+    }
+
+    .nav-button {
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    .nav-button:hover {
+      background-color: #A1BBD8;
+    }
   </style>
 </head>
 <body>
+  <div class="navigation">
+    <button class="nav-button" onclick="goHome()">← Ana Sayfa</button>
+  </div>
+
   <div id="video-container">
     <h2>Live Camera</h2>
-    <img src="{{ url_for('video_feed') }}" width="640" height="480" alt="Camera Feed">
+    <img id="cameraFeed" src="http://127.0.0.1:5001/video_feed" width="640" height="480" alt="Camera Feed">
   </div>
 
   <div id="predictions-container">
@@ -91,6 +123,8 @@
   </div>
 
   <script>
+    let predictionInterval;
+
     async function fetchPredictions() {
       try {
         const res = await fetch("/get_predictions");
@@ -101,7 +135,73 @@
         document.getElementById("predictions").innerText = "Connection error.";
       }
     }
-    setInterval(fetchPredictions, 1000);
+
+    function startPredictions() {
+      predictionInterval = setInterval(fetchPredictions, 1000);
+    }
+
+    function stopPredictions() {
+      if (predictionInterval) {
+        clearInterval(predictionInterval);
+        predictionInterval = null;
+      }
+    }
+
+    async function stopCamera() {
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+        console.log('Kamera durduruldu');
+      } catch (err) {
+        console.error('Kamera durdurma hatası:', err);
+      }
+    }
+
+    function goHome() {
+      stopPredictions();
+      stopCamera();
+      
+      // Kamera akışını durdur
+      const img = document.getElementById('cameraFeed');
+      if (img) {
+        img.src = '';
+      }
+      
+      // Kısa bir bekleme sonrası yönlendir
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    }
+
+    // Sayfa kapanırken veya yenilenirken kamera akışını durdur
+    window.addEventListener('beforeunload', () => {
+      stopPredictions();
+      stopCamera();
+      
+      const img = document.getElementById('cameraFeed');
+      if (img) {
+        img.src = '';
+      }
+    });
+
+    // Sayfa değişikliklerini yakala
+    window.addEventListener('pagehide', () => {
+      stopPredictions();
+      stopCamera();
+    });
+
+    // Visibility API ile sayfa gizlendiğinde kamerayı durdur
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopPredictions();
+        stopCamera();
+      } else {
+        startPredictions();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      startPredictions();
+    });
   </script>
 </body>
 </html>

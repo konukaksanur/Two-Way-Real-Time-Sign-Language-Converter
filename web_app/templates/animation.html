@@ -29,6 +29,29 @@
       padding: 50px 20px;
     }
 
+    .navigation {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+    }
+
+    .nav-button {
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    .nav-button:hover {
+      background-color: #A1BBD8;
+    }
+
     h2 {
       font-size: 24px;
       color: var(--primary-color);
@@ -79,6 +102,9 @@
   </style>
 </head>
 <body>
+  <div class="navigation">
+    <button class="nav-button" onclick="goHome()">← Ana Sayfa</button>
+  </div>
 
   <h2>Enter a sentence:</h2>
 
@@ -92,6 +118,33 @@
   <script>
     const form = document.getElementById("videoForm");
     const video = document.getElementById("videoPlayer");
+
+    async function goHome() {
+      // Kamerayı durdur
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Kamera zaten durdurulmuş veya hata:', err);
+      }
+      
+      // Video oynatımını durdur
+      if (video) {
+        video.pause();
+        video.src = '';
+      }
+      
+      // Ana sayfaya git
+      window.location.href = '/';
+    }
+
+    // Sayfa yüklendiğinde kamerayı durdur
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Kamera zaten durdurulmuş veya hata:', err);
+      }
+    });
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
@@ -144,6 +197,14 @@
       video.removeEventListener("ended", playNextVideo);
       video.addEventListener("ended", playNextVideo);
       playNextVideo();
+    });
+
+    // Sayfa kapanırken video durdur
+    window.addEventListener('beforeunload', () => {
+      if (video) {
+        video.pause();
+        video.src = '';
+      }
     });
   </script>
 
