@@ -1,99 +1,151 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>Sign Language Animation</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f6fa;
-            color: #2f3640;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 50px 20px;
-        }
+  <meta charset="UTF-8">
+  <title>Sign Language Animation</title>
+  <style>
+    :root {
+      --primary-color: #003f69;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --border-radius: 12px;
+      --text-color: #333;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-        h2 {
-            margin-bottom: 20px;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        form {
-            margin-bottom: 30px;
-            display: flex;
-            gap: 10px;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px 20px;
+    }
 
-        input[type="text"] {
-            padding: 10px;
-            font-size: 16px;
-            width: 300px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
+    h2 {
+      font-size: 24px;
+      color: var(--primary-color);
+      margin-bottom: 20px;
+    }
 
-        button {
-            padding: 10px 20px;
-            background-color: #7117d0;
-            color: white;
-            font-size: 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
+    form {
+      margin-bottom: 30px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
 
-        button:hover {
-            background-color: #40067d;
-        }
+    input[type="text"] {
+      padding: 12px 16px;
+      font-size: 16px;
+      width: 320px;
+      border: 1px solid #ccc;
+      border-radius: var(--border-radius);
+      background-color: var(--card-bg);
+      box-shadow: var(--shadow);
+    }
 
-        video {
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+    button {
+      padding: 12px 24px;
+      background-color: var(--primary-color);
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #A1BBD8;
+    }
+
+    video {
+      margin-top: 20px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      border: none;
+      background-color: black;
+    }
+  </style>
 </head>
 <body>
 
-    <h2>Enter a sentence:</h2>
+  <h2>Enter a sentence:</h2>
 
-    <form id="videoForm">
-        <input type="text" id="sentenceInput" placeholder="anne aciklamak ad" required>
-        <button type="submit">Play</button>
-    </form>
+  <form id="videoForm">
+    <input type="text" id="sentenceInput" placeholder="anne açıklamak ad" required>
+    <button type="submit">Oynat</button>
+  </form>
 
-    <video id="videoPlayer" width="640" height="360" controls></video>
+  <video id="videoPlayer" width="640" height="360" controls></video>
 
-    <script>
-        const form = document.getElementById("videoForm");
-        const video = document.getElementById("videoPlayer");
+  <script>
+    const form = document.getElementById("videoForm");
+    const video = document.getElementById("videoPlayer");
 
-        form.addEventListener("submit", function(event) {
-            event.preventDefault();
-            const input = document.getElementById("sentenceInput").value.trim();
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+      const input = document.getElementById("sentenceInput").value.trim();
 
-            if (input === "") {
-                alert("Please enter a sentence.");
-                return;
-            }
+      if (input === "") {
+        alert("Enter a sentence.");
+        return;
+      }
 
-            const words = input.split(" ");
-            const videoQueue = words.map(word => `/static/${word}.mp4`);
-            let index = 0;
+      const words = input.split(" ");
+      const videoQueue = [];
+      const missingWords = [];
 
-            function playNextVideo() {
-                if (index < videoQueue.length) {
-                    video.src = videoQueue[index];
-                    video.load();
-                    video.play();
-                    index++;
-                }
-            }
+      for (const word of words) {
+        const videoPath = `/static/${word}.mp4`;
+        try {
+          const response = await fetch(videoPath, { method: 'HEAD' });
+          if (response.ok) {
+            videoQueue.push(videoPath);
+          } else {
+            missingWords.push(word);
+          }
+        } catch (error) {
+          missingWords.push(word);
+        }
+      }
 
-            video.addEventListener("ended", playNextVideo);
-            playNextVideo();
-        });
-    </script>
+      if (videoQueue.length === 0) {
+        alert("" +
+            "None of the words are valid.");
+        return;
+      }
+
+      let index = 0;
+      let alertShown = false;
+
+      function playNextVideo() {
+        if (index < videoQueue.length) {
+          video.src = videoQueue[index];
+          video.load();
+          video.play();
+          index++;
+        } else if (!alertShown && missingWords.length > 0) {
+          alertShown = true;
+          alert("Invalid words: " + missingWords.join(", "));
+        }
+      }
+
+      video.removeEventListener("ended", playNextVideo);
+      video.addEventListener("ended", playNextVideo);
+      playNextVideo();
+    });
+  </script>
 
 </body>
 </html>

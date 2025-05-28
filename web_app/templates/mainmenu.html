@@ -1,54 +1,107 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>Ana Sayfa</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f1f2f6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
+  <meta charset="UTF-8">
+  <title>Ana Sayfa</title>
+  <style>
+    :root {
+      --primary-color: #003f69;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --text-color: #333;
+      --border-radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-        h1 {
-            color: #2f3640;
-            margin-bottom: 40px;
-        }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        .button-container {
-            display: flex;
-            gap: 20px;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-        button {
-            padding: 15px 30px;
-            font-size: 16px;
-            background-color: #7117d0;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
+    .container {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+    }
 
-        button:hover {
-            background-color: #40067d;
-        }
-    </style>
+    .side-images, .right-images {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .middle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .flag, .sign {
+      width: 130px;
+      border-radius: 6px;
+    }
+
+    h1 {
+      font-size: 28px;
+      color: var(--primary-color);
+      margin: 20px 0;
+    }
+
+    .button-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #A1BBD8;
+    }
+  </style>
 </head>
 <body>
-
-    <h1>Turkish Sign Language Converter</h1>
-
-    <div class="button-container">
-        <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
-        <button onclick="window.location.href='/SignToText'">Sign To Text</button>
+  <div class="container">
+    <div class="side-images">
+      <img src="/static/sign1.png" alt="Flag" class="sign">
     </div>
 
+    <div class="middle">
+      <img src="/static/tr.webp" alt="Sign" class="flag">
+      <h1>Turkish Sign Language Converter</h1>
+      <div class="button-container">
+        <button onclick="window.location.href='/SignToText'">Sign To Text</button>
+        <button onclick="window.location.href='/TextToSign'">Text To Sign</button>
+      </div>
+    </div>
+
+    <div class="right-images">
+      <img src="/static/sign2.png" alt="Flag" class="sign">
+    </div>
+  </div>
 </body>
 </html>
