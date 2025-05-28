@@ -106,7 +106,7 @@
     <button class="nav-button" onclick="goHome()">← Ana Sayfa</button>
   </div>
 
-  <h2>Enter a sentence:</h2>
+  <h2>Çeviri yapılacak kelimeler:</h2>
 
   <form id="videoForm">
     <input type="text" id="sentenceInput" placeholder="anne açıklamak ad" required>
@@ -151,7 +151,7 @@
       const input = document.getElementById("sentenceInput").value.trim();
 
       if (input === "") {
-        alert("Enter a sentence.");
+        alert("Animasyonları olacak kelimeleri giriniz.");
         return;
       }
 
@@ -160,7 +160,7 @@
       const missingWords = [];
 
       for (const word of words) {
-        const videoPath = `/static/${word}.mp4`;
+        const videoPath = `/static/animations/${word}.mp4`;
         try {
           const response = await fetch(videoPath, { method: 'HEAD' });
           if (response.ok) {
@@ -175,7 +175,7 @@
 
       if (videoQueue.length === 0) {
         alert("" +
-            "None of the words are valid.");
+            "Hiçbir kelime animasyonu mevcut değil.");
         return;
       }
 
@@ -190,7 +190,7 @@
           index++;
         } else if (!alertShown && missingWords.length > 0) {
           alertShown = true;
-          alert("Invalid words: " + missingWords.join(", "));
+          alert("Animasyonu bulunmayan kelimeler: " + missingWords.join(", "));
         }
       }
 
