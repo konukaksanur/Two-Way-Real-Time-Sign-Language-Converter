@@ -46,6 +46,7 @@ frame_lock_counter = 0
 camera_active = False
 camera_lock = threading.Lock()
 current_camera = None
+camera_thread = None
 
 def release_camera():
     """Kamerayı güvenli bir şekilde serbest bırak"""
@@ -73,8 +74,8 @@ def gen_frames():
             print("❌ Kamera açılamadı!")
             return
         
-        current_camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        current_camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        current_camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        current_camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         camera_active = True
 
     try:
@@ -169,11 +170,33 @@ def index3():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    """Video akışı endpoint'i - sadece kamera aktifken çalışır"""
+    if camera_active:
+        return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    else:
+        # Kamera aktif değilse boş response döndür
+        return Response("", mimetype='text/plain')
 
 @app.route('/get_predictions')
 def get_predictions():
+    """Mevcut tahminleri döndür"""
     return jsonify(sentence=sentence)
+
+@app.route('/start_camera', methods=['POST'])
+def start_camera():
+    """Kamerayı manuel olarak başlatma endpoint'i"""
+    global camera_active, camera_thread
+    
+    try:
+        if not camera_active:
+            camera_active = True
+            print("🎥 Kamera başlatılıyor...")
+            return jsonify(status="camera_started")
+        else:
+            return jsonify(status="camera_already_active")
+    except Exception as e:
+        print(f"❌ Kamera başlatma hatası: {e}")
+        return jsonify(status="error", message=str(e))
 
 @app.route('/stop_camera', methods=['POST'])
 def stop_camera():
@@ -181,12 +204,29 @@ def stop_camera():
     release_camera()
     return jsonify(status="camera_stopped")
 
+@app.route('/clear_predictions', methods=['POST'])
+def clear_predictions():
+    """Tahmin edilen metni temizleme endpoint'i"""
+    global sentence, sequence
+    sentence = []
+    sequence = []  # Sequence'ı da temizle ki yeni tahminler etkilenmesin
+    print("🗑️ Tahminler temizlendi")
+    return jsonify(status="predictions_cleared")
+
+@app.route('/camera_status')
+def camera_status():
+    """Kamera durumunu kontrol etme endpoint'i"""
+    return jsonify(
+        active=camera_active,
+        predictions_count=len(sentence)
+    )
+
 # Uygulama kapatılırken kamerayı serbest bırak
 import atexit
 atexit.register(release_camera)
 
 # Uygulamayı çalıştır
 if __name__ == '__main__':
-    import webbrowser
-    webbrowser.open("http://127.0.0.1:5001")
+    # import webbrowser
+    # webbrowser.open("http://127.0.0.1:5001")
     app.run(host="0.0.0.0", port=5001, debug=True)
