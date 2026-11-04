@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Sign Language Animation</title>
@@ -103,14 +103,14 @@
 </head>
 <body>
   <div class="navigation">
-    <button class="nav-button" onclick="goHome()">← Ana Sayfa</button>
+    <button class="nav-button" onclick="goHome()">← Home</button>
   </div>
 
-  <h2>Çeviri yapılacak kelimeler:</h2>
+  <h2>Words to translate:</h2>
 
   <form id="videoForm">
     <input type="text" id="sentenceInput" placeholder="anne açıklamak ad" required>
-    <button type="submit">Oynat</button>
+    <button type="submit">Play</button>
   </form>
 
   <video id="videoPlayer" width="640" height="360" controls></video>
@@ -120,29 +120,24 @@
     const video = document.getElementById("videoPlayer");
 
     async function goHome() {
-      // Kamerayı durdur
       try {
         await fetch('/stop_camera', { method: 'POST' });
       } catch (err) {
-        console.log('Kamera zaten durdurulmuş veya hata:', err);
+        console.log('Camera already stopped or an error occurred', err);
       }
       
-      // Video oynatımını durdur
       if (video) {
         video.pause();
         video.src = '';
       }
-      
-      // Ana sayfaya git
-      window.location.href = '/';
+            window.location.href = '/';
     }
 
-    // Sayfa yüklendiğinde kamerayı durdur
     document.addEventListener('DOMContentLoaded', async () => {
       try {
         await fetch('/stop_camera', { method: 'POST' });
       } catch (err) {
-        console.log('Kamera zaten durdurulmuş veya hata:', err);
+        console.log('Camera already stopped or an error occurred:', err);
       }
     });
 
@@ -151,7 +146,7 @@
       const input = document.getElementById("sentenceInput").value.trim();
 
       if (input === "") {
-        alert("Animasyonları olacak kelimeleri giriniz.");
+        alert("Please enter words to animate.");
         return;
       }
 
@@ -175,7 +170,7 @@
 
       if (videoQueue.length === 0) {
         alert("" +
-            "Hiçbir kelime animasyonu mevcut değil.");
+            "No animation videos available for the entered words.");
         return;
       }
 
@@ -190,7 +185,7 @@
           index++;
         } else if (!alertShown && missingWords.length > 0) {
           alertShown = true;
-          alert("Animasyonu bulunmayan kelimeler: " + missingWords.join(", "));
+          alert("Animations not found for: " + missingWords.join(", "));
         }
       }
 
@@ -199,7 +194,6 @@
       playNextVideo();
     });
 
-    // Sayfa kapanırken video durdur
     window.addEventListener('beforeunload', () => {
       if (video) {
         video.pause();
