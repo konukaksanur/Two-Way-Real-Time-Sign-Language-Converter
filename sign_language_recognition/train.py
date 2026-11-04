@@ -1,70 +1,43 @@
-import numpy as np
 import os
+import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout, GRU, BatchNormalization, Bidirectional, LayerNormalization
+
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, ReduceLROnPlateau
+
+from tensorflow.keras import Model, Input
+from tensorflow.keras.utils import to_categorical
+
+from tensorflow.keras.layers import (
+    LSTM, 
+    Dense, 
+    Dropout,
+    LayerNormalization,
+    MultiHeadAttention, 
+    GlobalAveragePooling1D, 
+    Add, 
+    Concatenate
+)
+
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 
-from scipy.interpolate import CubicSpline
-from sklearn.model_selection import StratifiedKFold
-
-from sklearn.preprocessing import StandardScaler
-
-from tensorflow.keras import Model, Input
-from tensorflow.keras.layers import LSTM, Dense, Dropout, LayerNormalization, MultiHeadAttention, GlobalAveragePooling1D, Add, Concatenate
-
-
 # Define data path and load actions
-DATA_PATH = "keypoints_175_40"
-actions = np.array([
-    d for d in os.listdir(DATA_PATH) 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "keypoints_175_40")
+
+actions = np.array(sorted([
+    d for d in os.listdir(DATA_PATH)
     if os.path.isdir(os.path.join(DATA_PATH, d))
-])
+]))
 label_map = {label: num for num, label in enumerate(actions)}
-
-
-def fill_missing_keypoints(sequence):
-
-    sequence = np.array(sequence)
-
-    for i in range(sequence.shape[1]):  # Iterate over each column (x, y, z)
-        column = sequence[:, i]
-        mask_column = column == 0  # Create a mask for missing values (zeros)
-
-        if np.any(~mask_column):  # Check if there is at least one known value
-            known_x = np.flatnonzero(~mask_column)  # Indices of known points
-            known_y = column[~mask_column]  # Values of known points
-
-            # Create cubic spline interpolation function using known points
-            cs = CubicSpline(known_x, known_y, bc_type='natural')
-
-            missing_x = np.flatnonzero(mask_column)  # Indices of missing points
-            column[mask_column] = cs(missing_x)  # Estimate and fill missing points
-
-        sequence[:, i] = column  # Save the updated column back to sequence
-
-    return sequence 
-
-
-expected_shape = None  # İlk videonun frame boyutunu burada tutacağız
-expected_length = None
-
-sequences, labels = [], []
-
 
 # Data processing
 sequences, labels = [], []
-# before_fill_val = [] # just for check
 for action in actions:  # Iterate over each class
     action_path = os.path.join(DATA_PATH, action)
     for video_folder in os.listdir(action_path):  # Each video
-
-
         video_path = os.path.join(action_path, video_folder)
         if not os.path.isdir(video_path):
             continue
@@ -79,19 +52,19 @@ for action in actions:  # Iterate over each class
             res = np.load(frame_path)
             window.append(res)
 
-        print(f"video_path: {video_path}")
-
-        # window'a interpolation uygula
-        # filled_miss_val_window = fill_missing_keypoints(window)
-        filled_miss_val_window = window
-
         if len(window) > 0:  # Add sequence if it has frames
-            # before_fill_val.append(window) # !!just for check
-            sequences.append(filled_miss_val_window)
+            sequences.append(window)
             labels.append(label_map[action])
 
 
-# Convert to NumPy arrays and normalize input data
+# Validate the shape of training sequences
+if not sequences:
+    raise ValueError("No training sequences were found.")
+
+if not all(np.asarray(seq).shape == (40, 307) for seq in sequences):
+    raise ValueError("All sequences must contain 40 frames and 307 features.")
+
+# Convert training sequences to a NumPy array
 X = np.array(sequences)
 
 X_r_keypoint = X[:, :, 162:225]
@@ -110,7 +83,7 @@ X_l_angle = X[:, :, 246:261]
 X_l_interaction = X[:, :, 277:293]
 
 X_left = np.concatenate((X_l_keypoint, X_l_wrist, X_l_angle, X_l_interaction), axis=2)
-print(f"X_right.shape: {X_right.shape}")
+print(f"X_left.shape: {X_left.shape}")
 
 #######################################################################################
 
@@ -123,38 +96,56 @@ X_pose = np.concatenate((X_p_keypoint, X_p_angle, X_p_distance, X_p_intra_hand),
 print(f"X_pose.shape: {X_pose.shape}")
 #######################################################################################
 
-
-# X = (X - X.min()) / (X.max() - X.min())  # Normalize data
-# scaler = StandardScaler()
-# X = scaler.fit_transform(X)
-
 num_samples, timesteps, num_features = X.shape
 print(f"num_samples: {num_samples}")
 print(f"timesteps: {timesteps}")
 print(f"num_features: {num_features}")
 
-# (samples * timesteps, features) şekline getirip
-# X_reshaped = X.reshape(-1, num_features)
-
-# # Her feature için ayrı min/max bul
-# X_min = X_reshaped.min(axis=0)
-# X_max = X_reshaped.max(axis=0)
-
-# # Normalize et
-# X_norm = (X_reshaped - X_min) / (X_max - X_min + 1e-8)
-
-# # Eski şekle döndür
-# X = X_norm.reshape(num_samples, timesteps, num_features)
-
 y = to_categorical(labels).astype(int)
 
 
-X_right_train, X_right_test, X_left_train, X_left_test, X_pose_train, X_pose_test, y_train, y_test = train_test_split(
-    X_right, X_left, X_pose, y,
-    test_size=0.2,
-    stratify=labels,  # class dengesini korumak için
+# Step 1: Reserve 10% of the dataset for independent testing
+(
+    X_right_dev, X_right_test,
+    X_left_dev, X_left_test,
+    X_pose_dev, X_pose_test,
+    y_dev, y_test,
+    labels_dev, labels_test
+) = train_test_split(
+    X_right, X_left, X_pose, y, np.array(labels),
+    test_size=0.10,
+    stratify=labels,
     random_state=42
 )
+
+# Step 2: Split the remaining 90% into training and validation
+# Approximately 11.11% of the remaining 90% is used for validation
+(
+    X_right_train, X_right_val,
+    X_left_train, X_left_val,
+    X_pose_train, X_pose_val,
+    y_train, y_val
+) = train_test_split(
+    X_right_dev, X_left_dev, X_pose_dev, y_dev,
+    test_size=0.111111,
+    stratify=labels_dev,
+    random_state=42
+)
+
+# Verify class distribution across datasets
+train_classes = np.argmax(y_train, axis=1)
+val_classes = np.argmax(y_val, axis=1)
+test_classes = np.argmax(y_test, axis=1)
+
+print(f"Training classes: {len(np.unique(train_classes))}")
+print(f"Validation classes: {len(np.unique(val_classes))}")
+print(f"Test classes: {len(np.unique(test_classes))}")
+
+# Display dataset sizes
+print(f"Training samples: {len(y_train)}")
+print(f"Validation samples: {len(y_val)}")
+print(f"Test samples: {len(y_test)}")
+
 
 # --- Inputs ---
 input_right = Input(shape=(X_right.shape[1], X_right.shape[2]))
@@ -162,22 +153,22 @@ input_left = Input(shape=(X_left.shape[1], X_left.shape[2]))
 input_pose = Input(shape=(X_pose.shape[1], X_pose.shape[2]))
 
 
-# --- Sağ el LSTM pipeline ---
+# --- Right-hand LSTM branch ---
 x_r = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_right)
 x_r = LayerNormalization(axis=1)(x_r)
 x_r = Dropout(0.4)(x_r)
 
-# --- Sol el LSTM pipeline ---
+# --- Left-hand LSTM branch ---
 x_l = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_left)
 x_l = LayerNormalization(axis=1)(x_l)
 x_l = Dropout(0.4)(x_l)
 
-# --- Pose LSTM pipeline ---
+# --- Pose LSTM branch ---
 x_p = LSTM(128, return_sequences=True, activation='tanh', kernel_regularizer=l2(0.01))(input_pose)
 x_p = LayerNormalization(axis=1)(x_p)
 x_p = Dropout(0.4)(x_p)
 
-# --- Hepsini Attention ile birleştir ---
+# --- Combine features using attention ---
 merged = Concatenate(axis=2)([x_r, x_l, x_p])
 
 attn_small = MultiHeadAttention(num_heads=4, key_dim=32)(merged, merged)
@@ -213,34 +204,35 @@ reduce_lr = ReduceLROnPlateau(
 early_stopping = EarlyStopping(
     monitor='val_loss', patience=30, restore_best_weights=True
 )
-log_dir = os.path.join('Logs')
-tb_callback = TensorBoard(log_dir=log_dir)
 
 # --- Training ---
 history = model.fit(
     [X_right_train, X_left_train, X_pose_train], y_train,
-    validation_data=([X_right_test, X_left_test, X_pose_test], y_test),
+    validation_data=([X_right_val, X_left_val, X_pose_val], y_val),
     epochs=100,
     batch_size=64,
-    callbacks=[tb_callback, early_stopping, reduce_lr],
+    callbacks=[early_stopping, reduce_lr],    
     verbose=1
 )
 
-# Fold'un Doğruluk Skorunu Kaydet**
-val_loss, val_acc = model.evaluate([X_right_test, X_left_test, X_pose_test], y_test, verbose=0)
-print(f"\nTest Accuracy: {val_acc * 100:.2f}%")
+# Evaluate the final model on the independent test set
+test_loss, test_acc = model.evaluate(
+    [X_right_test, X_left_test, X_pose_test],
+    y_test,
+    verbose=0
+)
 
-# Modeli kaydet
-model.save('action6.h5')
+print(f"\nTest Accuracy: {test_acc * 100:.2f}%")
+print(f"Test Loss: {test_loss:.4f}")
+
+# Save the trained model
+MODEL_PATH = os.path.join(BASE_DIR, "action4.h5")
+model.save(MODEL_PATH)
 
 # Evaluate the model
 yhat = model.predict([X_right_test, X_left_test, X_pose_test])
 ytrue = np.argmax(y_test, axis=1).tolist()
 yhat = np.argmax(yhat, axis=1).tolist()
-
-# Print accuracy and confusion matrix
-accuracy = accuracy_score(ytrue, yhat)
-print(f"Model Accuracy: {accuracy * 100:.2f}%")
 
 conf_matrix = confusion_matrix(ytrue, yhat)
 print("Confusion Matrix:")
