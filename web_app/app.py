@@ -118,15 +118,22 @@ def gen_frames():
                         np.expand_dims(X_p, axis=0)
                     ], verbose=0)[0]
 
-                    best_action = actions[np.argmax(res)]
-                    if res[np.argmax(res)] > threshold:
-                        if frame_lock_counter == 0:
-                            if len(sentence) == 0 or best_action != sentence[-1]:
-                                sentence.append(best_action)
-                                print("🧠 Prediction:", best_action)
+                    best_idx = np.argmax(res)
+                    best_action = actions[best_idx]
+                    confidence = res[best_idx]
+
+                    print(f"🧠 Top prediction: {best_action} | Confidence: {confidence:.2%}")
+
+                    # Decrease the lock counter on every processed frame
+                    if frame_lock_counter > 0:
+                        frame_lock_counter -= 1
+
+                    # Add a prediction only when confidence is high and the lock has expired
+                    if confidence > threshold and frame_lock_counter == 0:
+                        if len(sentence) == 0 or best_action != sentence[-1]:
+                            sentence.append(best_action)
+                            print(f"✅ Added: {best_action} | Confidence: {confidence:.2%}")
                             frame_lock_counter = lock_duration
-                        else:
-                            frame_lock_counter -= 1
 
                     if len(sentence) > 5:
                         sentence = sentence[-5:]

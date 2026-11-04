@@ -155,7 +155,7 @@
       const missingWords = [];
 
       for (const word of words) {
-        const videoPath = `/static/animations/${word}.mp4`;
+        const videoPath = `/static/${word}.mp4`;
         try {
           const response = await fetch(videoPath, { method: 'HEAD' });
           if (response.ok) {

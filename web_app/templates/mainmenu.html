@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ana Sayfa</title>
+  <title>Home</title>
   <style>
     :root {
       --primary-color: #003f69;
@@ -92,10 +92,10 @@
 
     <div class="middle">
       <img src="/static/tr.webp" alt="Sign" class="flag">
-      <h1>Çift Yönlü Türkçe İşaret Dili Çeviri</h1>
+      <h1>Two-Way Turkish Sign Language Translator</h1>
       <div class="button-container">
-        <button onclick="navigateToPage('/SignToText')">İşaretten Metine Çeviri</button>
-        <button onclick="navigateToPage('/TextToSign')">Metinden İşarete Çeviri</button>
+        <button onclick="navigateToPage('/SignToText')">Sign to Text Translation</button>
+        <button onclick="navigateToPage('/TextToSign')">Text to Sign Translation</button>
       </div>
     </div>
 
@@ -106,23 +106,20 @@
 
   <script>
     async function navigateToPage(url) {
-      // Kamerayı durdur
       try {
         await fetch('/stop_camera', { method: 'POST' });
       } catch (err) {
-        console.log('Kamera zaten durdurulmuş veya hata:', err);
+        console.log('Camera is already stopped or error:', err);
       }
       
-      // Sayfaya yönlendir
       window.location.href = url;
     }
 
-    // Sayfa yüklendiğinde kamerayı durdur
     document.addEventListener('DOMContentLoaded', async () => {
       try {
         await fetch('/stop_camera', { method: 'POST' });
       } catch (err) {
-        console.log('Kamera zaten durdurulmuş veya hata:', err);
+        console.log('Camera is already stopped or error:', err);
       }
     });
   </script>

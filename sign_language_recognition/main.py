@@ -6,11 +6,11 @@ import numpy as np
 from .feature_extraction import extract_features
 
 # Mediapipe models and utilities
-mp_holistic = mp.solutions.holistic  # To get hand body and face gesture
-mp_drawing = mp.solutions.drawing_utils  # for drawing that features
+mp_holistic = mp.solutions.holistic  # Detect pose, hand, and face landmarks
+mp_drawing = mp.solutions.drawing_utils   # Draw detected landmarks
 
 
-def mediapipe_detection(image, model): #opencv bgr mediapipe rgb kullanıyo diye olmuş, non-writeable yapıyoruz ki mediapipe image'ı değiştirmesin
+def mediapipe_detection(image, model): 
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
     image.flags.writeable = False  # Make image non-writeable for performance
     results = model.process(image)  # Process the image with the Mediapipe model
@@ -19,16 +19,6 @@ def mediapipe_detection(image, model): #opencv bgr mediapipe rgb kullanıyo diye
     return image, results
 
 def draw_styled_landmarks(image, results):
-    # # Draw face connections
-    # if results.face_landmarks:
-    #     mp_drawing.draw_landmarks( 
-    #         image,
-    #         results.face_landmarks,
-    #         mp.solutions.face_mesh.FACEMESH_TESSELATION,
-    #         mp_drawing.DrawingSpec(color=(80, 110, 10), thickness=1, circle_radius=1),
-    #         mp_drawing.DrawingSpec(color=(80, 256, 121), thickness=1, circle_radius=1)
-    #     )
-    # Draw pose connections
     if results.pose_landmarks:
         mp_drawing.draw_landmarks(
             image,
@@ -57,20 +47,22 @@ def draw_styled_landmarks(image, results):
         )
 
 def process_videos():
-    DATA_PATH = "/Users/aksanurkonuk/Programming_Projects/Two-Way-Real-Time-Sign-Language-Converter/keypoints_175_40"  # Keypoint'leri kaydetmek için klasör
-    VIDEO_PATH = "data"  # Videoların ana klasörü
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_PATH = os.path.join(BASE_DIR, "keypoints_175_40")
+
+    VIDEO_PATH = os.path.join(BASE_DIR, "data")
 
     SEQUENCE_LENGTH = 40
 
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        for folder_name in os.listdir(VIDEO_PATH):  # Ana klasördeki her alt klasörü kontrol et
+        for folder_name in os.listdir(VIDEO_PATH):  
             folder_path = os.path.join(VIDEO_PATH, folder_name)
-            if not os.path.isdir(folder_path):  # Sadece klasörleri işleme al
+            if not os.path.isdir(folder_path):  
                 continue
 
-            for video_name in os.listdir(folder_path):  # Her klasördeki videoları kontrol et
+            for video_name in os.listdir(folder_path): 
                 video_path = os.path.join(folder_path, video_name)
-                if not video_path.endswith('.mp4'):  # Sadece .mp4 dosyalarını işleme al
+                if not video_path.endswith('.mp4'):
                     continue
 
                 cap = cv2.VideoCapture(video_path)
@@ -91,25 +83,14 @@ def process_videos():
                         if not success:
                             break                       
 
-                        # Frame işleme
                         image, results = mediapipe_detection(frame, holistic)
-
-                        # Görselleştirme için landmark çizimi
-                        # draw_styled_landmarks(image, results)
-
                         print(f"Processing {folder_name}/{video_name} Frame {frame_counter}")
 
                         image, features = extract_features(image, results)
 
-                        # Her bir frame'in keypoint'ini ayrı dosyaya kaydet
                         save_folder = os.path.join(DATA_PATH, folder_name, video_name.split('.')[0])
                         os.makedirs(save_folder, exist_ok=True)
                         np.save(os.path.join(save_folder, f"frame_{frame_counter}.npy"), features)
-
-                        # # Video işleme durumunu göster
-                        # cv2.putText(image, f"Processing {folder_name}/{video_name} Frame {frame_counter}", (15, 30),
-                        #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-                        # cv2.imshow('Processing Video', image)
 
                         if cv2.waitKey(10) & 0xFF == ord('q'):
                             break
