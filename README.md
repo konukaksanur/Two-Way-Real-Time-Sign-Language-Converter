@@ -58,6 +58,41 @@ python -m web_app.app
 
 Open `http://127.0.0.1:5001` in your browser.
 
+
+## Project Structure
+
+The repository is organized into two main components: sign language recognition and the web application.
+
+```text
+Two-Way-Real-Time-Sign-Language-Converter/
+├── sign_language_recognition/
+│   ├── action4.h5
+│   ├── class_map.csv
+│   ├── feature_extraction.py
+│   ├── train.py
+│   └── video_preprocessing.py
+├── web_app/
+│   ├── static/
+│   ├── templates/
+│   └── app.py
+├── requirements.txt
+└── README.md
+```
+
+### Sign Language Recognition
+
+- **`video_preprocessing.py`**: Prepares video frames for feature extraction.
+- **`feature_extraction.py`**: Extracts landmarks and geometric motion features.
+- **`train.py`**: Trains and evaluates the recognition model.
+- **`action4.h5`**: Contains the trained recognition model.
+- **`class_map.csv`**: Maps predicted classes to sign labels.
+
+### Web Application
+
+- **`app.py`**: Flask backend for the bidirectional converter.
+- **`templates/`**: HTML pages for sign recognition and animation interfaces.
+- **`static/`**: Images and videos used by the web interface.
+
 ## Dataset
 
 The project uses a subset of the **BosphorusSign22k** dataset (Özdemir et al., 2020), consisting of **175 Turkish Sign Language gesture classes**. The original dataset contains 22,542 video samples representing 744 signs performed by six signers.
