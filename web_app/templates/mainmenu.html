@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Home</title>
+  <style>
+    :root {
+      --primary-color: #003f69;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --text-color: #333;
+      --border-radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .side-images, .right-images {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .middle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .flag, .sign {
+      width: 130px;
+      border-radius: 6px;
+    }
+
+    h1 {
+      font-size: 28px;
+      color: var(--primary-color);
+      margin: 20px 0;
+    }
+
+    .button-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #A1BBD8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="side-images">
+      <img src="/static/sign1.png" alt="Flag" class="sign">
+    </div>
+
+    <div class="middle">
+      <img src="/static/tr.webp" alt="Sign" class="flag">
+      <h1>Two-Way Turkish Sign Language Translator</h1>
+      <div class="button-container">
+        <button onclick="navigateToPage('/SignToText')">Sign to Text Translation</button>
+        <button onclick="navigateToPage('/TextToSign')">Text to Sign Translation</button>
+      </div>
+    </div>
+
+    <div class="right-images">
+      <img src="/static/sign2.png" alt="Flag" class="sign">
+    </div>
+  </div>
+
+  <script>
+    async function navigateToPage(url) {
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Camera is already stopped or error:', err);
+      }
+      
+      window.location.href = url;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await fetch('/stop_camera', { method: 'POST' });
+      } catch (err) {
+        console.log('Camera is already stopped or error:', err);
+      }
+    });
+  </script>
+</body>
+</html>

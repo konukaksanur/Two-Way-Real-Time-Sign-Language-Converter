@@ -1,0 +1,23 @@
+
+# Two-Way Real-Time Sign Language Converter
+# Python 3.9 - macOS / Apple Silicon
+
+# Core numerical and image processing
+numpy==1.26.4
+opencv-contrib-python==4.11.0.86
+mediapipe==0.10.21
+
+# Model training and inference
+tensorflow==2.16.2
+keras==3.9.2
+h5py>=3.10.0,<4
+scikit-learn==1.6.1
+scipy==1.13.1
+
+# Class mapping and visualization
+pandas==2.0.3
+matplotlib==3.9.4
+Pillow==11.1.0
+
+# Web application
+Flask==3.1.0

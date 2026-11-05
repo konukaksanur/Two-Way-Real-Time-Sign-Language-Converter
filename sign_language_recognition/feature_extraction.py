@@ -118,17 +118,13 @@ def calculate_arm_angles(image, results):
     return image, np.array(angles)
 
 def extract_keypoints(results):
-    # pose = np.array([[res.x, res.y, res.z, res.visibility] for res in
-    #                  results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(132)
     pose = np.array([[res.x, res.y, res.z] for res in
                      results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33*3)
-    # face = np.array([[res.x, res.y, res.z] for res in
                     # results.face_landmarks.landmark]).flatten() if results.face_landmarks else np.zeros(468*3)
     lh = np.array([[res.x, res.y, res.z] for res in
                     results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21 * 3)
     rh = np.array([[res.x, res.y, res.z] for res in
                     results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21 * 3)
-    # return np.concatenate([pose,face,lh,rh])
     return np.concatenate([pose, lh, rh])
 
 def calculate_distance(p1, p2):
@@ -149,21 +145,13 @@ def calculate_intra_hand_distances(image, results):
         if landmarks:
             landmark = landmarks.landmark
 
-            wrist = [landmark[0].x, landmark[0].y, landmark[0].z]
-            middle_finger_mcp = [landmark[9].x, landmark[9].y, landmark[9].z]
-    
-            # Reference bone length
-            # ref_dist = calculate_distance(wrist, middle_finger_mcp)
-
             for j0, j1 in joint_list:
                 tip1 = [landmark[j0].x, landmark[j0].y, landmark[j0].z]
                 tip2 = [landmark[j1].x, landmark[j1].y, landmark[j1].z]
 
-                # distance = calculate_distance(tip1, tip2) / ref_dist
                 distance = calculate_distance(tip1, tip2)
                 
                 finger_dist.append(distance)
-                # draw_line(image, distance, pt2)
 
         else: 
             finger_dist.extend([0] * 16)
@@ -191,26 +179,6 @@ def calculate_inter_hand_distances(image, results):
     return image, np.array(finger_dist)
 
 
-# def calculate_inter_hand_distances(image, results):
-#     finger_dist = []
-
-#     if results.right_hand_landmarks and results.left_hand_landmarks and results.pose_landmarks:
-#         landmark_r = results.right_hand_landmarks.landmark
-#         landmark_l = results.left_hand_landmarks.landmark
-
-#         ref_dist = get_shoulder_distance(results)
-
-#         for j_r in range(21):
-#             for j_l in range(21):
-#                 tip1 = [landmark_r[j_r].x, landmark_r[j_r].y, landmark_r[j_r].z]
-#                 tip2 = [landmark_l[j_l].x, landmark_l[j_l].y, landmark_l[j_l].z]
-
-#                 distance = calculate_distance(tip1, tip2) / (3.5 * ref_dist)
-#                 finger_dist.append(distance)
-#     else:
-#         finger_dist = [0] * (21 * 21)
-#     return image, np.array(finger_dist)
-
 def calculate_hand_pose_distance(image, results):
     hand_pose_distance = []
 
@@ -220,9 +188,6 @@ def calculate_hand_pose_distance(image, results):
     ]
 
     if results.pose_landmarks:
-
-        # ref_dist = get_shoulder_distance(results)
-
         for j0, j1 in joint_list:
             
             j0_landmark = results.pose_landmarks.landmark[j0]
@@ -231,7 +196,6 @@ def calculate_hand_pose_distance(image, results):
             j0_coords = [j0_landmark.x, j0_landmark.y, j0_landmark.z]
             j1_coords = [j1_landmark.x, j1_landmark.y, j1_landmark.z]
 
-            # distance = calculate_distance(j0_coords, j1_coords) / (3 * ref_dist)
             distance = calculate_distance(j0_coords, j1_coords)
 
             hand_pose_distance.append(distance)
@@ -266,6 +230,3 @@ def extract_features(image, results):
     image, hand_pose_distance = calculate_hand_pose_distance(image, results)
 
     return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, intra_hand_distances, inter_hand_distance, hand_pose_distance])
-    # return image, np.concatenate([keypoints, elbow_angles, wrist_angles, finger_angles, intra_hand_distances, inter_hand_distance, hand_pose_distance])
-    
-    # return image, keypoints

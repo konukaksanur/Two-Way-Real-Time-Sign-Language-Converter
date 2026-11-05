@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign Language Recognition</title>
+  
+  <meta http-equiv="Cache-Control" content="no-store" />
+  
+  <style>
+    :root {
+      --primary-color: #003f69;
+      --secondary-color: #28a745;
+      --danger-color: #dc3545;
+      --warning-color: #ffc107;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --border-radius: 12px;
+      --text-color: #333;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      color: var(--text-color);
+      flex-wrap: wrap;
+    }
+
+    #video-container {
+      background-color: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 2px solid #d1dce5;
+      position: relative;
+    }
+
+    #video-container h2 {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-size: 20px;
+    }
+
+    #video-controls {
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e0e6ed;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    #predictions-container {
+      max-width: 400px;
+      min-width: 350px;
+      background-color: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid #e0e6ed;
+      align-self: flex-start;
+    }
+
+    #predictions-container h2 {
+      font-size: 20px;
+      color: var(--primary-color);
+      margin-bottom: 12px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 8px;
+    }
+
+    #predictions {
+      font-size: 22px;
+      color: #222;
+      margin-top: 20px;
+      line-height: 1.6;
+      word-break: break-word;
+      min-height: 100px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e0e6ed;
+    }
+
+    #text-controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    #status-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+      z-index: 10;
+    }
+
+    .status-active {
+      background-color: var(--secondary-color);
+    }
+
+    .status-inactive {
+      background-color: var(--danger-color);
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .navigation {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+    }
+
+    .nav-button {
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: var(--shadow);
+      transition: background-color 0.2s ease;
+    }
+
+    .nav-button:hover {
+      background-color: #A1BBD8;
+    }
+
+    .control-button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-start {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+
+    .btn-start:hover {
+      background-color: #218838;
+    }
+
+    .btn-stop {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn-stop:hover {
+      background-color: #c82333;
+    }
+
+    .btn-clear {
+      background-color: var(--warning-color);
+      color: #212529;
+    }
+
+    .btn-clear:hover {
+      background-color: #e0a800;
+    }
+
+    .btn-disabled {
+      background-color: #6c757d;
+      color: white;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-disabled:hover {
+      background-color: #6c757d;
+    }
+
+    #camera-placeholder {
+      width: 960px;
+      height: 540px;
+      background-color: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6c757d;
+      font-size: 18px;
+      border: 2px dashed #dee2e6;
+    }
+  </style>
+</head>
+<body>
+  <div class="navigation">
+    <button class="nav-button" onclick="goHome()">← Home</button>
+  </div>
+
+  <div id="video-container">
+    <h2>Live Camera</h2>
+    <div id="status-indicator" class="status-inactive">INACTIVE</div>
+    
+    <div id="camera-view">
+      <div id="camera-placeholder">
+        Camera not started
+      </div>
+    </div>
+    
+    <div id="video-controls">
+      <button id="start-btn" class="control-button btn-start" onclick="startCamera()">
+        🎥 Start Camera
+      </button>
+      <button id="stop-btn" class="control-button btn-stop btn-disabled" onclick="stopCameraFeed()">
+        ⏹️ Stop Camera
+      </button>
+    </div>
+  </div>
+
+  <div id="predictions-container">
+    <h2>Predicted Signs</h2>
+    <div id="predictions">Predictions will appear here once the camera is started...</div>
+    
+    <div id="text-controls">
+      <button class="control-button btn-clear" onclick="clearText()">
+        🗑️ Clear Text
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let predictionInterval;
+    let cameraActive = false;
+
+    async function fetchPredictions() {
+      if (!cameraActive) return;
+      
+      try {
+        const res = await fetch("/get_predictions");
+        const data = await res.json();
+        const predictionsText = data.sentence.join(" ");
+        document.getElementById("predictions").innerText = predictionsText || "Waiting for predictions...";
+      } catch (err) {
+        console.error("Prediction fetch error:", err);
+        document.getElementById("predictions").innerText = "Connection error.";
+      }
+    }
+
+    function startPredictions() {
+      if (predictionInterval) {
+        clearInterval(predictionInterval);
+      }
+      predictionInterval = setInterval(fetchPredictions, 1000);
+    }
+
+    function stopPredictions() {
+      if (predictionInterval) {
+        clearInterval(predictionInterval);
+        predictionInterval = null;
+      }
+    }
+
+    async function startCamera() {
+      try {
+        const response = await fetch('/start_camera', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.status === 'camera_started') {
+          cameraActive = true;
+          
+          document.getElementById('camera-placeholder').style.display = 'none';
+          document.getElementById('camera-view').innerHTML = 
+            '<img id="cameraFeed" src="http://127.0.0.1:5001/video_feed?' + Date.now() + '" width="960" height="540" alt="Camera Feed">';
+          
+          document.getElementById('status-indicator').textContent = 'ACTIVE';
+          document.getElementById('status-indicator').className = 'status-active';
+          
+          document.getElementById('start-btn').classList.add('btn-disabled');
+          document.getElementById('start-btn').disabled = true;
+          document.getElementById('stop-btn').classList.remove('btn-disabled');
+          document.getElementById('stop-btn').disabled = false;
+          
+          const currentText = document.getElementById('predictions').innerText;
+          if ('Predictions will appear here once the camera is started...' || 
+              currentText === 'Text is cleared. Camera is off.' ||
+              currentText === 'Camera stopped. Text preserved.') {
+            document.getElementById('predictions').innerText = 'Waiting for predictions...';
+          }
+          
+          startPredictions();
+          console.log('✅ Camera started');
+        }
+      } catch (err) {
+        console.error('Camera start error:', err);
+        alert('Camera could not be started. Please try again.');
+      }
+    }
+
+    async function stopCameraFeed() {
+      try {
+        cameraActive = false;
+        stopPredictions();
+        
+        await fetch('/stop_camera', { method: 'POST' });
+        
+        const cameraFeed = document.getElementById('cameraFeed');
+        if (cameraFeed) {
+          cameraFeed.remove();
+        }
+        
+        document.getElementById('camera-view').innerHTML = 
+          '<div id="camera-placeholder">Camera stopped</div>';
+        
+        document.getElementById('status-indicator').textContent = 'STOPPED';
+        document.getElementById('status-indicator').className = 'status-inactive';
+        
+        document.getElementById('start-btn').classList.remove('btn-disabled');
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('stop-btn').classList.add('btn-disabled');
+        document.getElementById('stop-btn').disabled = true;
+        
+        if (document.getElementById('predictions').innerText === 'Waiting for predictions...') {
+          document.getElementById('predictions').innerText = 'Camera stopped. Text preserved.';
+        }
+        
+        console.log('🔴 Camera stopped');
+      } catch (err) {
+        console.error('Camera stop error:', err);
+      }
+    }
+
+    async function clearText() {
+      try {
+        await fetch('/clear_predictions', { method: 'POST' });
+        
+        const statusMessage = cameraActive ? 'Waiting for predictions...' : 'Text is cleared. Camera is off.';
+        document.getElementById('predictions').innerText = statusMessage;
+        
+        console.log('🗑️ Text is cleared');
+      } catch (err) {
+        console.error('Text clearing error:', err);
+      }
+    }
+
+    function goHome() {
+      stopCameraFeed();
+      
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (cameraActive) {
+        stopCameraFeed();
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if (cameraActive) {
+        stopCameraFeed();
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && cameraActive) {
+        stopCameraFeed();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Page loaded. Camera can be started manually.');
+    });
+  </script>
+</body>
+</html>
