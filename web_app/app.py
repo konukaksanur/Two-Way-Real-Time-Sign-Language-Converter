@@ -13,9 +13,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(BASE_DIR)
 
 # Import sign language recognition utilities
-from sign_language_recognition.main import mp_holistic, mediapipe_detection, draw_styled_landmarks
 from sign_language_recognition.feature_extraction import extract_features
-
+from sign_language_recognition.video_preprocessing import mp_holistic, mediapipe_detection, draw_styled_landmarks
 
 # Initialize Flask application
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))

@@ -1,9 +1,10 @@
 import os
 import cv2
 import mediapipe as mp
-import numpy as np
+import numpy as np 
 
 from .feature_extraction import extract_features
+
 
 # Mediapipe models and utilities
 mp_holistic = mp.solutions.holistic  # Detect pose, hand, and face landmarks
