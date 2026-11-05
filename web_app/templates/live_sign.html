@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>Sign Language Recognition</title>
+  <title>İşaret Dili Tanıma</title>
   
   <meta http-equiv="Cache-Control" content="no-store" />
   
@@ -215,36 +215,36 @@
 </head>
 <body>
   <div class="navigation">
-    <button class="nav-button" onclick="goHome()">← Home</button>
+    <button class="nav-button" onclick="goHome()">← Ana Sayfa</button>
   </div>
 
   <div id="video-container">
-    <h2>Live Camera</h2>
-    <div id="status-indicator" class="status-inactive">INACTIVE</div>
+    <h2>Canlı Kamera</h2>
+    <div id="status-indicator" class="status-inactive">DURDURULDU</div>
     
     <div id="camera-view">
       <div id="camera-placeholder">
-        Camera not started
+        Kamera başlatılmadı
       </div>
     </div>
     
     <div id="video-controls">
       <button id="start-btn" class="control-button btn-start" onclick="startCamera()">
-        🎥 Start Camera
+        🎥 Kamerayı Başlat
       </button>
       <button id="stop-btn" class="control-button btn-stop btn-disabled" onclick="stopCameraFeed()">
-        ⏹️ Stop Camera
+        ⏹️ Kamerayı Durdur
       </button>
     </div>
   </div>
 
   <div id="predictions-container">
-    <h2>Predicted Signs</h2>
-    <div id="predictions">Predictions will appear here once the camera is started...</div>
+    <h2>Tahmin edilen işaretler</h2>
+    <div id="predictions">Tahmin için bekleniyor...</div>
     
     <div id="text-controls">
       <button class="control-button btn-clear" onclick="clearText()">
-        🗑️ Clear Text
+        🗑️ Metni Temizle
       </button>
     </div>
   </div>
@@ -260,10 +260,10 @@
         const res = await fetch("/get_predictions");
         const data = await res.json();
         const predictionsText = data.sentence.join(" ");
-        document.getElementById("predictions").innerText = predictionsText || "Waiting for predictions...";
+        document.getElementById("predictions").innerText = predictionsText || "Tahmin için bekleniyor...";
       } catch (err) {
         console.error("Prediction fetch error:", err);
-        document.getElementById("predictions").innerText = "Connection error.";
+        document.getElementById("predictions").innerText = "Bağlantı hatası.";
       }
     }
 
@@ -291,9 +291,9 @@
           
           document.getElementById('camera-placeholder').style.display = 'none';
           document.getElementById('camera-view').innerHTML = 
-            '<img id="cameraFeed" src="http://127.0.0.1:5001/video_feed?' + Date.now() + '" width="960" height="540" alt="Camera Feed">';
+            '<img id="cameraFeed" src="http://127.0.0.1:5001/video_feed?' + Date.now() + '" width="960" height="540" alt="Kamera Görüntüsü">';
           
-          document.getElementById('status-indicator').textContent = 'ACTIVE';
+          document.getElementById('status-indicator').textContent = 'Aktif';
           document.getElementById('status-indicator').className = 'status-active';
           
           document.getElementById('start-btn').classList.add('btn-disabled');
@@ -302,10 +302,10 @@
           document.getElementById('stop-btn').disabled = false;
           
           const currentText = document.getElementById('predictions').innerText;
-          if ('Predictions will appear here once the camera is started...' || 
-              currentText === 'Text is cleared. Camera is off.' ||
-              currentText === 'Camera stopped. Text preserved.') {
-            document.getElementById('predictions').innerText = 'Waiting for predictions...';
+          if ('Tahminler burada görünecek...' || 
+              currentText === 'Metin temizlendi. Kamera kapalı.' ||
+              currentText === 'Kamera durduruldu. Metin korundu.') {
+            document.getElementById('predictions').innerText = 'Tahmin için bekleniyor...';
           }
           
           startPredictions();
@@ -313,7 +313,7 @@
         }
       } catch (err) {
         console.error('Camera start error:', err);
-        alert('Camera could not be started. Please try again.');
+        alert('Kamera başlatılamadı. Lütfen tekrar deneyin.');
       }
     }
 
@@ -330,9 +330,9 @@
         }
         
         document.getElementById('camera-view').innerHTML = 
-          '<div id="camera-placeholder">Camera stopped</div>';
+          '<div id="camera-placeholder">Kamera durduruldu</div>';
         
-        document.getElementById('status-indicator').textContent = 'STOPPED';
+        document.getElementById('status-indicator').textContent = 'DURDURULDU';
         document.getElementById('status-indicator').className = 'status-inactive';
         
         document.getElementById('start-btn').classList.remove('btn-disabled');
@@ -340,8 +340,8 @@
         document.getElementById('stop-btn').classList.add('btn-disabled');
         document.getElementById('stop-btn').disabled = true;
         
-        if (document.getElementById('predictions').innerText === 'Waiting for predictions...') {
-          document.getElementById('predictions').innerText = 'Camera stopped. Text preserved.';
+        if (document.getElementById('predictions').innerText === 'Tahmin için bekleniyor...') {
+          document.getElementById('predictions').innerText = 'Kamera durduruldu. Metin korundu.';
         }
         
         console.log('🔴 Camera stopped');
@@ -354,7 +354,7 @@
       try {
         await fetch('/clear_predictions', { method: 'POST' });
         
-        const statusMessage = cameraActive ? 'Waiting for predictions...' : 'Text is cleared. Camera is off.';
+        const statusMessage = cameraActive ? 'Tahmin için bekleniyor...' : 'Metin temizlendi. Kamera kapalı.';
         document.getElementById('predictions').innerText = statusMessage;
         
         console.log('🗑️ Text is cleared');
